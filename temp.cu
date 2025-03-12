@@ -1,20 +1,14 @@
-#include <cmath>
-#include <iostream>
-#include <cublas_v2.h>
 #include "utils.cu"
+#include <stdio.h>
+#include <cuda_runtime.h>
 // Kernel function to add the elements of two arrays
 
 __global__ void hello() {
     printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
 }
 
-__global__ void add(float *a, float *b, int n) {
-    for (int i = 0; i < n; i++) {
-        a[i] = a[i] + b[i];
-    }
-}
 
-__global__ void sgemm_kernel(int M, int N, int K, float alpha, const float *A, const float *B, float beta, float *C) {
+__global__ void kernel1(const int M, const int N, const int K, const bf16 alpha, const bf16 *A, const bf16 *B, bf16 beta, bf16 *C) {
     const uint x = blockIdx.x * blockDim.x + threadIdx.x;
     const uint y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -28,21 +22,20 @@ __global__ void sgemm_kernel(int M, int N, int K, float alpha, const float *A, c
 }
 
 int main(void) {
-    float *a, *b, *d_a, *d_b;
+    bf16 *a, *b, *d_a, *d_b;
     int N = 1 << 12;
-    a = (float *)malloc(N * sizeof(float));
-    b = (float *)malloc(N * sizeof(float));
+    a = (bf16 *)malloc(N * sizeof(bf16));
+    b = (bf16 *)malloc(N * sizeof(bf16));
 
     randomise_matrix(a, N);
     randomise_matrix(b, N);
-    cudaMalloc((void **)&d_a, N * sizeof(float));
-    cudaMalloc((void **)&d_b, N * sizeof(float));
-    cudaMemcpyAsync(d_a, a, N * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpyAsnyc(d_b, b, N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc((void **)&d_a, N * sizeof(bf16));
+    cudaMalloc((void **)&d_b, N * sizeof(bf16));
+    cudaMemcpyAsync(d_a, a, N * sizeof(bf16), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_b, b, N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    add<<<1, 1>>>(d_a, d_b, N);
     cudaDeviceSynchronize();
-    cudaMemcpy(a, d_a, N * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(a, d_a, N * sizeof(bf16), cudaMemcpyDeviceToHost);
     cudaFree(d_a);
     cudaFree(d_b);
     free(a);
