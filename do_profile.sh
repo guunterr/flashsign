@@ -1,5 +1,5 @@
 #! /usr/bin/bash
-ls
-nvcc -o temp temp.cu
+nvidia-smi
+nvcc -V
+nvcc -arch=sm_75 -o temp temp.cu
 ./temp
-ls

@@ -19,9 +19,8 @@ def main():
     # print(run_command(sb, "ls ~").stdout.read())
     # sb.terminate()
     
-@app.function(gpu='any')
+@app.function(gpu='T4')
 def profile_temp(files):
-    import subprocess
     print(os.getcwd())
     print(run_command("which bash", capture_output=True, text=True).stdout)
     print(run_command("ls", capture_output=True, text=True).stdout)
@@ -33,26 +32,9 @@ def profile_temp(files):
     output = run_command("./do_profile.sh", capture_output=True)
     print(output.stdout)
     print(output.stderr)
-    # print(code)
-    # run_command(f"echo '{code}' > temp.cu", shell=True)
-    # run_command(f"echo '{utils}' > utils.cu", shell=True)
-    # print(run_command("nvcc --version", capture_output=True).stdout)
-    # print(run_command("ls", capture_output=True).stdout)
-    # print(run_command("cat temp.cu", capture_output=True).stdout)
-    # output = run_command("nvcc -o temp temp.cu", capture_output=True)
-    # print(f"{output.stdout}\n{output.stderr}")
-    # print(run_command("ls", capture_output=True).stdout)
-    # output = run_command("./temp", capture_output=True)
-    # print(output.stdout)
-    # output = run_command("sudo $(which ncu) temp -o profile_results", capture_output=True, shell=True)
-    # print(output.stdout, output.stderr)
-    # output = run_command("cat profile_results", capture_output=True)
-    # print(output.stdout)
-    # print(run_command("ls", capture_output=True).stdout)
     
 @app.function(gpu='any')
 def check_nvidia_smi():
-    import subprocess
     try:
         print("Checking nvidia-smi")
         output = subprocess.run(["nvidia-smi"], text=True, capture_output=True)
