@@ -26,18 +26,6 @@ void randomise_matrix(bf16 *matrix, int N) {
     }
 }
 
-void copy_matrix(bf16 *src, bf16 *dst, int N) {
-    for (int i = 0; i < N; i++) {
-        dst[i] = src[i];
-    }
-}
-
-bf16 *make_matrix_copy(bf16 *matrix, int N) {
-    bf16 *copy = (bf16 *)malloc(N * sizeof(bf16));
-    copy_matrix(matrix, copy, N);
-    return copy;
-}
-
 bool verify_matrix(bf16 *matRef, bf16 *matOut, int N) {
     double diff = 0.0;
     int i;
@@ -61,11 +49,13 @@ __global__ void kernel1(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 
     const uint y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x < M && y < N) {
+        
         bf16 temp = 0.0;
         for (int i = 0; i < K; ++i) {
             temp += A[x * K + i] * B[i * N + y];
         }
-        C[x * N + y] = temp + C[x * N + y];
+        bf16 new_val = temp + C[x * N + y];
+        C[x * N + y] = new_val;
     }
 }
 template <const uint BLOCKSIZE>
@@ -111,8 +101,10 @@ void run_kernel(int kernel_number, int M, int N, int K, const bf16 *A, const bf1
     switch (kernel_number) {
         case 1:
             run_kernel1(M, N, K, A, B, C);
+            break;
         case 2:
             run_kernel2(M, N, K, A, B, C);
+            break;
     }
     return;
 }
@@ -129,8 +121,7 @@ void warmup_kernel() {
 
 void time_kernel(int kernel_number) {
     bf16 *a, *b, *c, *d_a, *d_b, *d_c;
-    int N = 1 << 
-    printf("1\n");
+    int N = 1 << 12;
     // Initialise and copy matrices
     a = make_random_matrix(N, N);
     b = make_random_matrix(N, N);
@@ -143,7 +134,6 @@ void time_kernel(int kernel_number) {
     cudaMemcpyAsync(d_b, b, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaMemcpyAsync(d_c, c, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    printf("2\n");
 
     // Run and time kernel
     cudaEvent_t start, stop;
@@ -155,18 +145,18 @@ void time_kernel(int kernel_number) {
     cudaEventSynchronize(start);
     cudaEventSynchronize(stop);
     cudaDeviceSynchronize();
-    printf("3\n");
+
     // Print time
     float milliseconds = 0;
     cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Kernel %d took %f ms\n", kernel_number, milliseconds);
+    printf("Kernel %d took %.2f ms, doing %.2f FLOPS, giving %.2f GFLOPS/s\n", kernel_number, milliseconds, (2*pow(N, 3)  + pow(N,2)) , (2*pow(N, 3)  + pow(N,2)) / (milliseconds * 1e6));
     free(a);
     free(b);
     free(c);
     cudaFree(d_a);
     cudaFree(d_b);
     cudaFree(d_c);
-    printf("4\n");
+
     return;
 }
 
@@ -182,15 +172,16 @@ void print_matrix(bf16 *matrix, int M, int N) {
 
 void test_kernel(int kernel_number, bool print = false) {
     bf16 *a, *b, *c1, *c2, *d_a, *d_b, *d_c1, *d_c2;
-    int N = 1 << 1;
+    int N = 1 << 10;
     a = (bf16 *)malloc(N * N * sizeof(bf16));
     b = (bf16 *)malloc(N * N * sizeof(bf16));
     c1 = (bf16 *)malloc(N * N * sizeof(bf16));
+    c2 = (bf16 *)malloc(N * N * sizeof(bf16));
 
     randomise_matrix(a, N * N);
     randomise_matrix(b, N * N);
     randomise_matrix(c1, N * N);
-    c2 = make_matrix_copy(c1, N * N);
+    memcpy(c2, c1, N * N * sizeof(bf16));
 
     if (print) {
         printf("A: %dx%d\n", N, N);
@@ -200,37 +191,37 @@ void test_kernel(int kernel_number, bool print = false) {
         printf("C: %dx%d\n", N, N);
         print_matrix(c1, N, N);
         printf("C: %dx%d\n", N, N);
-        print_matrix(c1, N, N);
+        print_matrix(c2, N, N);
     }
 
-    //Allocate memory on device
+    // Allocate memory on device
     cudaMalloc((void **)&d_a, N * N * sizeof(bf16));
     cudaMalloc((void **)&d_b, N * N * sizeof(bf16));
     cudaMalloc((void **)&d_c1, N * N * sizeof(bf16));
     cudaMalloc((void **)&d_c2, N * N * sizeof(bf16));
 
-    //Copy data to device
+    // Copy data to device
     cudaMemcpy(d_a, a, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaMemcpy(d_b, b, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaMemcpy(d_c1, c1, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaMemcpy(d_c2, c2, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    //Run reference kernel 1 and current kernel
-    run_kernel(1, N, N, N, d_a, d_b, d_c1);
+    // Run reference kernel 1 and current kernel
     run_kernel(kernel_number, N, N, N, d_a, d_b, d_c2);
+    run_kernel(1, N, N, N, d_a, d_b, d_c1);
     cudaDeviceSynchronize();
 
-    //Copy reference kernel 1 and current kernel results back to host
+    // Copy reference kernel 1 and current kernel results back to host
     cudaMemcpy(a, d_a, N * N * sizeof(bf16), cudaMemcpyDeviceToHost);
     cudaMemcpy(b, d_b, N * N * sizeof(bf16), cudaMemcpyDeviceToHost);
-    cudaMemcpy(c2, d_c1, N * N * sizeof(bf16), cudaMemcpyDeviceToHost);
-    cudaMemcpy(c1, d_c2, N * N * sizeof(bf16), cudaMemcpyDeviceToHost);
+    cudaMemcpy(c2, d_c2, N * N * sizeof(bf16), cudaMemcpyDeviceToHost);
+    cudaMemcpy(c1, d_c1, N * N * sizeof(bf16), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    
+
     bool pass = verify_matrix(c2, c1, N * N);
-    if (pass){
+    if (pass) {
         printf("Kernel %d: %s\n", kernel_number, verify_matrix(c2, c1, N * N) ? "PASS" : "FAIL");
-    } else{
+    } else if (print) {
         printf("A: %dx%d\n", N, N);
         print_matrix(a, N, N);
         printf("B: %dx%d\n", N, N);
@@ -252,6 +243,11 @@ void test_kernel(int kernel_number, bool print = false) {
 }
 
 int main(void) {
-    test_kernel(2, true);
+    // test_kernel(2, false);
+    time_kernel(1);
+    time_kernel(1);
+    time_kernel(1);
+    time_kernel(1);
+
     return 0;
 }
