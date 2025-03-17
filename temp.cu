@@ -14,8 +14,10 @@
 #include <iostream>
 #include <random>
 #include <vector>
-// #include <kernels/kernel1.cuh>
-// #include <kernels/kernel2.cuh>
+#include "kernels/kernel1.cuh"
+#include "kernels/kernel2.cuh"
+#include "kernels/kernel3.cuh"
+#include "kernels/kernel4.cuh"
 
 typedef __nv_bfloat16 bf16;
 
@@ -44,69 +46,6 @@ bool verify_matrix(bf16 *matRef, bf16 *matOut, int N) {
 
 __global__ void hello() {
     printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
-}
-
-__global__ void kernel1(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
-    const uint x = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (x < M && y < N) {
-        bf16 temp = 0.0;
-        for (int i = 0; i < K; ++i) {
-            temp += A[x * K + i] * B[i * N + y];
-        }
-        bf16 new_val = temp + C[x * N + y];
-        C[x * N + y] = new_val;
-    }
-}
-
-template <const uint BLOCKSIZE>
-__global__ void kernel2(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
-    const uint x = blockIdx.x * BLOCKSIZE + (threadIdx.x / BLOCKSIZE);
-    const uint y = blockIdx.y * BLOCKSIZE + (threadIdx.x % BLOCKSIZE);
-
-    if (x < M && y < N) {
-        bf16 temp = 0.0;
-        for (int i = 0; i < K; ++i) {
-            temp += A[x * K + i] * B[i * N + y];
-        }
-        C[x * N + y] = temp + C[x * N + y];
-    }
-}
-
-template <const int BLOCKSIZE>
-__global__ void kernel3(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
-    const uint cRow = blockIdx.x;
-    const uint cCol = blockIdx.y;
-
-    __shared__ bf16 As[BLOCKSIZE * BLOCKSIZE];
-    __shared__ bf16 Bs[BLOCKSIZE * BLOCKSIZE];
-    // Initial locations of A, B, C blocks
-    int Ablock = cRow * K * BLOCKSIZE;
-    int Bblock = cCol * BLOCKSIZE;
-    int Cblock = cRow * N * BLOCKSIZE + cCol * BLOCKSIZE;
-    bf16 temp = 0.0;
-    // Threadcol consecutive threads -> threads in warp access same elements of A, consecutive elements of B
-    const uint threadCol = threadIdx.x % BLOCKSIZE;
-    const uint threadRow = threadIdx.x / BLOCKSIZE;
-    for (int block = 0; block < K; block += BLOCKSIZE) {
-        // Load A and B blocks into shared memory
-        As[threadRow * BLOCKSIZE + threadCol] = A[Ablock + threadRow * K + threadCol];
-        Bs[threadRow * BLOCKSIZE + threadCol] = B[Bblock + threadRow * K + threadCol];
-        // Wait for all threads to finish loading
-        __syncthreads();
-        // Move a block right along A, down along B
-        Ablock += BLOCKSIZE;
-        Bblock += BLOCKSIZE * N;
-        // One value of C per thread = dot product of row of A and column of B
-        for (int i = 0; i < BLOCKSIZE; i++) {
-            temp += As[threadRow * BLOCKSIZE + i] * Bs[i * BLOCKSIZE + threadCol];
-        }
-        // Have to wait for all threads to finish computing before moving on
-        __syncthreads();
-    }
-    // Write result to C
-    C[Cblock + threadRow * N + threadCol] += temp;
 }
 
 int ceil_div(int a, int b) {
@@ -232,8 +171,10 @@ void time_kernel(int kernel_number, int N = 1 << 12, int warmup = 2, int runs = 
     }
     float average_time = 0;
     float std = 0;
+    printf("Kernel %d took the following times:\n", kernel_number);
     for (size_t i = 0; i < runs; i++)
     {
+        printf("%.2f ms\n", times[i]);
         average_time += times[i];
         std += times[i] * times[i];
     }
@@ -333,10 +274,11 @@ void test_kernel(int kernel_number, bool print = false, int N = 1 << 8) {
 }
 
 int main(void) {
-    time_kernel(2, 1024);
-    time_kernel(3, 1024);
-    // time_kernel(2, 4096);
-    // time_kernel(3, 4096);
+    // time_kernel(2, 1024);
+    // time_kernel(3, 1024);
+    // time_kernel(1, 4096, 0, 3);
+    // time_kernel(2, 4096, 0, 3);
+    time_kernel(3, 4096, 0, 3);
 
     return 0;
 }
