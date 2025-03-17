@@ -43,11 +43,6 @@ bool verify_matrix(bf16 *matRef, bf16 *matOut, int N) {
     }
     return true;
 }
-
-__global__ void hello() {
-    printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
-}
-
 int ceil_div(int a, int b) {
     return (a / b) + (a % b != 0);
 }
@@ -88,6 +83,22 @@ void run_kernel3(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     return;
 }
 
+void run_kernel4(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
+    //BK = BN/TM = BM/TM
+    const int BK = 16;
+    const int TM = 2;
+    const int BM = 32;
+    const int BN = 32;
+    dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
+    dim3 blockDim((BM * BN)/TM);
+    kernel4<BM, BN, BK, TM><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error in run_kernel4: %s\n", cudaGetErrorString(err));
+    }
+    return;
+}
+
 void run_kernel(int kernel_number, int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     switch (kernel_number) {
         case 1:
@@ -98,6 +109,9 @@ void run_kernel(int kernel_number, int M, int N, int K, const bf16 *A, const bf1
             break;
         case 3:
             run_kernel3(M, N, K, A, B, C);
+            break;
+        case 4:
+            run_kernel4(M, N, K, A, B, C);
             break;
         default:
             printf("Invalid kernel number\n");
@@ -203,7 +217,7 @@ void print_matrix(bf16 *matrix, int M, int N) {
     return;
 }
 
-void test_kernel(int kernel_number, bool print = false, int N = 1 << 8) {
+void test_kernel(int kernel_number, bool print = false, int N = 256) {
     bf16 *a, *b, *c1, *c2, *d_a, *d_b, *d_c1, *d_c2;
     a = (bf16 *)malloc(N * N * sizeof(bf16));
     b = (bf16 *)malloc(N * N * sizeof(bf16));
@@ -274,11 +288,12 @@ void test_kernel(int kernel_number, bool print = false, int N = 1 << 8) {
 }
 
 int main(void) {
+    test_kernel(4, false);
     // time_kernel(2, 1024);
     // time_kernel(3, 1024);
     // time_kernel(1, 4096, 0, 3);
-    // time_kernel(2, 4096, 0, 3);
-    time_kernel(3, 4096, 0, 3);
+    time_kernel(3, 4096, 1, 2);
+    time_kernel(4, 4096, 1, 2);
 
     return 0;
 }

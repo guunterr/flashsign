@@ -25,7 +25,9 @@
     - Iteratively improve algorithm until we are >10x faster than pytorch
 
 - SGEMM Kernels
+    - Remember to use -O3 LOL
     - Kernel 1 60 GFLOPS (BAD!)
     - Kernel 2 231 GFLOPS
     - Kernel 3 260 GFLOPS
-    - Kernel 4 on the way
+    - Kernel 4 270 GFLOPS
+    - I think I need a profiler to keep going...
