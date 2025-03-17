@@ -14,6 +14,8 @@
 #include <iostream>
 #include <random>
 #include <vector>
+// #include <kernels/kernel1.cuh>
+// #include <kernels/kernel2.cuh>
 
 typedef __nv_bfloat16 bf16;
 
@@ -49,7 +51,6 @@ __global__ void kernel1(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 
     const uint y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x < M && y < N) {
-        
         bf16 temp = 0.0;
         for (int i = 0; i < K; ++i) {
             temp += A[x * K + i] * B[i * N + y];
@@ -58,6 +59,7 @@ __global__ void kernel1(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 
         C[x * N + y] = new_val;
     }
 }
+
 template <const uint BLOCKSIZE>
 __global__ void kernel2(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     const uint x = blockIdx.x * BLOCKSIZE + (threadIdx.x / BLOCKSIZE);
@@ -70,6 +72,41 @@ __global__ void kernel2(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 
         }
         C[x * N + y] = temp + C[x * N + y];
     }
+}
+
+template <const int BLOCKSIZE>
+__global__ void kernel3(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
+    const uint cRow = blockIdx.x;
+    const uint cCol = blockIdx.y;
+
+    __shared__ bf16 As[BLOCKSIZE * BLOCKSIZE];
+    __shared__ bf16 Bs[BLOCKSIZE * BLOCKSIZE];
+    // Initial locations of A, B, C blocks
+    int Ablock = cRow * K * BLOCKSIZE;
+    int Bblock = cCol * BLOCKSIZE;
+    int Cblock = cRow * N * BLOCKSIZE + cCol * BLOCKSIZE;
+    bf16 temp = 0.0;
+    // Threadcol consecutive threads -> threads in warp access same elements of A, consecutive elements of B
+    const uint threadCol = threadIdx.x % BLOCKSIZE;
+    const uint threadRow = threadIdx.x / BLOCKSIZE;
+    for (int block = 0; block < K; block += BLOCKSIZE) {
+        // Load A and B blocks into shared memory
+        As[threadRow * BLOCKSIZE + threadCol] = A[Ablock + threadRow * K + threadCol];
+        Bs[threadRow * BLOCKSIZE + threadCol] = B[Bblock + threadRow * K + threadCol];
+        // Wait for all threads to finish loading
+        __syncthreads();
+        // Move a block right along A, down along B
+        Ablock += BLOCKSIZE;
+        Bblock += BLOCKSIZE * N;
+        // One value of C per thread = dot product of row of A and column of B
+        for (int i = 0; i < BLOCKSIZE; i++) {
+            temp += As[threadRow * BLOCKSIZE + i] * Bs[i * BLOCKSIZE + threadCol];
+        }
+        // Have to wait for all threads to finish computing before moving on
+        __syncthreads();
+    }
+    // Write result to C
+    C[Cblock + threadRow * N + threadCol] += temp;
 }
 
 int ceil_div(int a, int b) {
@@ -86,6 +123,7 @@ void run_kernel1(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     }
     return;
 }
+
 void run_kernel2(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     dim3 gridDim(ceil_div(M, 32), ceil_div(N, 32));
     dim3 blockDim(32 * 32);
@@ -97,6 +135,20 @@ void run_kernel2(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     return;
 }
 
+void run_kernel3(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
+    dim3 gridDim(ceil_div(M, 32), ceil_div(N, 32));
+    dim3 blockDim(32 * 32);
+    cudaFuncSetAttribute(kernel3<32>,
+        cudaFuncAttributePreferredSharedMemoryCarveout,
+        cudaSharedmemCarveoutMaxShared);
+    kernel3<32><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error in run_kernel3: %s\n", cudaGetErrorString(err));
+    }
+    return;
+}
+
 void run_kernel(int kernel_number, int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
     switch (kernel_number) {
         case 1:
@@ -104,6 +156,12 @@ void run_kernel(int kernel_number, int M, int N, int K, const bf16 *A, const bf1
             break;
         case 2:
             run_kernel2(M, N, K, A, B, C);
+            break;
+        case 3:
+            run_kernel3(M, N, K, A, B, C);
+            break;
+        default:
+            printf("Invalid kernel number\n");
             break;
     }
     return;
@@ -119,37 +177,71 @@ void warmup_kernel() {
     return;
 }
 
-void time_kernel(int kernel_number) {
+void time_kernel(int kernel_number, int N = 1 << 12, int warmup = 2, int runs = 5) {
     bf16 *a, *b, *c, *d_a, *d_b, *d_c;
-    int N = 1 << 12;
-    // Initialise and copy matrices
-    a = make_random_matrix(N, N);
-    b = make_random_matrix(N, N);
-    c = make_random_matrix(N, N);
+    printf("Timing kernel %d with %d x %d matrices\n", kernel_number, N, N);
+    printf("Warming up...\n");
+    for (size_t i = 0; i < warmup; i++)
+    {
+        a = make_random_matrix(N, N);
+        b = make_random_matrix(N, N);
+        c = make_random_matrix(N, N);
 
-    cudaMalloc((void **)&d_a, N * N * sizeof(bf16));
-    cudaMalloc((void **)&d_b, N * N * sizeof(bf16));
-    cudaMalloc((void **)&d_c, N * N * sizeof(bf16));
-    cudaMemcpyAsync(d_a, a, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
-    cudaMemcpyAsync(d_b, b, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
-    cudaMemcpyAsync(d_c, c, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
-    cudaDeviceSynchronize();
+        cudaMalloc((void **)&d_a, N * N * sizeof(bf16));
+        cudaMalloc((void **)&d_b, N * N * sizeof(bf16));
+        cudaMalloc((void **)&d_c, N * N * sizeof(bf16));
+        cudaMemcpyAsync(d_a, a, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
+        cudaMemcpyAsync(d_b, b, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
+        cudaMemcpyAsync(d_c, c, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();
 
-    // Run and time kernel
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-    run_kernel(kernel_number, N, N, N, d_a, d_b, d_c);
-    cudaEventRecord(stop);
-    cudaEventSynchronize(start);
-    cudaEventSynchronize(stop);
-    cudaDeviceSynchronize();
 
-    // Print time
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("Kernel %d took %.2f ms, doing %.2f FLOPS, giving %.2f GFLOPS/s\n", kernel_number, milliseconds, (2*pow(N, 3)  + pow(N,2)) , (2*pow(N, 3)  + pow(N,2)) / (milliseconds * 1e6));
+        run_kernel(kernel_number, N, N, N, d_a, d_b, d_c);
+
+        cudaDeviceSynchronize();
+    }
+    printf("Timing kernel...\n");
+    float times[runs];
+    for (size_t i = 0; i < runs; i++)
+    {
+         // Initialise and copy matrices
+        a = make_random_matrix(N, N);
+        b = make_random_matrix(N, N);
+        c = make_random_matrix(N, N);
+
+        cudaMalloc((void **)&d_a, N * N * sizeof(bf16));
+        cudaMalloc((void **)&d_b, N * N * sizeof(bf16));
+        cudaMalloc((void **)&d_c, N * N * sizeof(bf16));
+        cudaMemcpyAsync(d_a, a, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
+        cudaMemcpyAsync(d_b, b, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
+        cudaMemcpyAsync(d_c, c, N * N * sizeof(bf16), cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();
+
+        // Run and time kernel
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
+        run_kernel(kernel_number, N, N, N, d_a, d_b, d_c);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(start);
+        cudaEventSynchronize(stop);
+        cudaDeviceSynchronize();
+
+        cudaEventElapsedTime(&times[i], start, stop);
+    }
+    float average_time = 0;
+    float std = 0;
+    for (size_t i = 0; i < runs; i++)
+    {
+        average_time += times[i];
+        std += times[i] * times[i];
+    }
+    average_time /= runs;
+    std = sqrt(std / runs - average_time * average_time);
+    double FLOPS = 2 * pow(N, 3) + pow(N, 2);
+    printf("Kernel %d took a total of %.2f+-%.2f ms , doing %.2e FLOPS, giving %.2f GFLOPS/s\n",
+         kernel_number, average_time, std, FLOPS, FLOPS / (average_time * 1e6));
     free(a);
     free(b);
     free(c);
@@ -170,9 +262,8 @@ void print_matrix(bf16 *matrix, int M, int N) {
     return;
 }
 
-void test_kernel(int kernel_number, bool print = false) {
+void test_kernel(int kernel_number, bool print = false, int N = 1 << 8) {
     bf16 *a, *b, *c1, *c2, *d_a, *d_b, *d_c1, *d_c2;
-    int N = 1 << 10;
     a = (bf16 *)malloc(N * N * sizeof(bf16));
     b = (bf16 *)malloc(N * N * sizeof(bf16));
     c1 = (bf16 *)malloc(N * N * sizeof(bf16));
@@ -219,9 +310,8 @@ void test_kernel(int kernel_number, bool print = false) {
     cudaDeviceSynchronize();
 
     bool pass = verify_matrix(c2, c1, N * N);
-    if (pass) {
-        printf("Kernel %d: %s\n", kernel_number, verify_matrix(c2, c1, N * N) ? "PASS" : "FAIL");
-    } else if (print) {
+    printf("Kernel %d: %s\n", kernel_number, pass ? "PASS" : "FAIL");
+    if (print && !pass) {
         printf("A: %dx%d\n", N, N);
         print_matrix(a, N, N);
         printf("B: %dx%d\n", N, N);
@@ -243,11 +333,10 @@ void test_kernel(int kernel_number, bool print = false) {
 }
 
 int main(void) {
-    // test_kernel(2, false);
-    time_kernel(1);
-    time_kernel(1);
-    time_kernel(1);
-    time_kernel(1);
+    time_kernel(2, 1024);
+    time_kernel(3, 1024);
+    // time_kernel(2, 4096);
+    // time_kernel(3, 4096);
 
     return 0;
 }

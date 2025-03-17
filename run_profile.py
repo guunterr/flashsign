@@ -33,15 +33,6 @@ def profile_temp(files):
     print(output.stdout)
     print(output.stderr)
     
-@app.function(gpu='any')
-def check_nvidia_smi():
-    try:
-        print("Checking nvidia-smi")
-        output = subprocess.run(["nvidia-smi"], text=True, capture_output=True)
-        print(output)
-    except Exception as e:
-        print(e)
-    
 def run_command(cmd, text=True, capture_output = True,**kwargs ):
     print(cmd)
     return subprocess.run(cmd.split(" "), text=text, capture_output=capture_output, **kwargs)
