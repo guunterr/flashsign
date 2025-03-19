@@ -10,6 +10,7 @@
 - Learn how to write CUDA and get stuff working
     - Implement decent saxpy or GEMM
         - Speed this up to somewhat near cublas rate
+    - Implement an autotuning hyperparameter search for kernels
 - Get a GPU on Vast.ai
     - Find an H100 I can rent
     - Set up an instance to do my programming
@@ -28,7 +29,7 @@
     - Remember to use -O3 LOL
     - BF16 only makes sense when using wmma
     - Kernel 1 60 GFLOPS (BAD!)
-    - Kernel 2 572.65 GFLOPS
-    - Kernel 3 963.75 GFLOPS
-    - Kernel 4 1142.43 GFLOPS
+    - Kernel 2 570 GFLOPS
+    - Kernel 3 960 GFLOPS
+    - Kernel 4 1200 GFLOPS
     - I think I need a profiler to keep going...

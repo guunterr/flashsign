@@ -83,10 +83,10 @@ void run_kernel3(int M, int N, int K, const float *A, const float *B, float *C) 
 
 void run_kernel4(int M, int N, int K, const float *A, const float *B, float *C) {
     //BK = BN/TM = BM/TM
-    const int BK = 16;
-    const int TM = 2;
-    const int BM = 32;
-    const int BN = 32;
+    const int BK = 8;
+    const int TM = 8;
+    const int BM = 64;
+    const int BN = 64;
     dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
     dim3 blockDim((BM * BN)/TM);
     kernel4<BM, BN, BK, TM><<<gridDim, blockDim>>>(M, N, K, A, B, C);
@@ -94,6 +94,11 @@ void run_kernel4(int M, int N, int K, const float *A, const float *B, float *C) 
     if (err != cudaSuccess) {
         printf("CUDA error in run_kernel4: %s\n", cudaGetErrorString(err));
     }
+    return;
+}
+
+void run_kernel5(int M, int N,  int K, const float *A, const float *B, float *C) {
+    printf("UNIMPLEMENTED\n");
     return;
 }
 
@@ -110,6 +115,9 @@ void run_kernel(int kernel_number, int M, int N, int K, const float *A, const fl
             break;
         case 4:
             run_kernel4(M, N, K, A, B, C);
+            break;
+        case 5:
+            run_kernel5(M, N, K, A, B, C);
             break;
         default:
             printf("Invalid kernel number\n");
@@ -292,7 +300,6 @@ int main(void) {
     // time_kernel(2, 1024);
     // time_kernel(3, 1024);
     // time_kernel(1, 4096, 0, 3);
-    time_kernel(1, 4096, 1, 2);
     time_kernel(2, 4096, 1, 2);
     time_kernel(3, 4096, 1, 2);
     time_kernel(4, 4096, 1, 2);
