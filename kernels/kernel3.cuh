@@ -16,22 +16,21 @@
 #include <random>
 #include <vector>
 
-typedef __nv_bfloat16 bf16;
 
 // https://godbolt.org/z/q6Grbv5Ps
 // This is apparently supposed to tell me something!?!?! Performance is magic.
 template <const int BLOCKSIZE>
-__global__ void kernel3(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
+__global__ void kernel3(int M, int N, int K, const float *A, const float *B, float *C) {
     const uint cRow = blockIdx.x;
     const uint cCol = blockIdx.y;
 
-    __shared__ bf16 As[BLOCKSIZE * BLOCKSIZE];
-    __shared__ bf16 Bs[BLOCKSIZE * BLOCKSIZE];
+    __shared__ float As[BLOCKSIZE * BLOCKSIZE];
+    __shared__ float Bs[BLOCKSIZE * BLOCKSIZE];
     // Initial locations of A, B, C blocks
     int Ablock = cRow * K * BLOCKSIZE;
     int Bblock = cCol * BLOCKSIZE;
     int Cblock = cRow * N * BLOCKSIZE + cCol * BLOCKSIZE;
-    bf16 temp = 0.0;
+    float temp = 0.0;
     // Threadcol consecutive threads -> threads in warp access same elements of A, consecutive elements of B
     const uint threadCol = threadIdx.x % BLOCKSIZE;
     const uint threadRow = threadIdx.x / BLOCKSIZE;

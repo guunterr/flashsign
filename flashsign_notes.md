@@ -26,8 +26,9 @@
 
 - SGEMM Kernels
     - Remember to use -O3 LOL
+    - BF16 only makes sense when using wmma
     - Kernel 1 60 GFLOPS (BAD!)
-    - Kernel 2 231 GFLOPS
-    - Kernel 3 260 GFLOPS
-    - Kernel 4 270 GFLOPS
+    - Kernel 2 572.65 GFLOPS
+    - Kernel 3 963.75 GFLOPS
+    - Kernel 4 1142.43 GFLOPS
     - I think I need a profiler to keep going...

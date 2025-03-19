@@ -16,15 +16,13 @@
 #include <random>
 #include <vector>
 
-typedef __nv_bfloat16 bf16;
-
 template <const uint BLOCKSIZE>
-__global__ void kernel2(int M, int N, int K, const bf16 *A, const bf16 *B, bf16 *C) {
+__global__ void kernel2(int M, int N, int K, const float *A, const float *B, float *C) {
     const uint x = blockIdx.x * BLOCKSIZE + (threadIdx.x / BLOCKSIZE);
     const uint y = blockIdx.y * BLOCKSIZE + (threadIdx.x % BLOCKSIZE);
 
     if (x < M && y < N) {
-        bf16 temp = 0.0;
+        float temp = 0.0;
         for (int i = 0; i < K; ++i) {
             temp += A[x * K + i] * B[i * N + y];
         }

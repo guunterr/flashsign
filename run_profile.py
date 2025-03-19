@@ -8,7 +8,7 @@ app = modal.App(name="profile", image=image)
 def main():
     files_to_write = ['temp.cu', 'utils.cu', 'do_profile.sh', 
                       'kernels/kernel1.cuh', 'kernels/kernel2.cuh', 'kernels/kernel3.cuh',
-                      'kernels/kernel4.cuh']
+                      'kernels/kernel4.cuh', 'kernels/kernel5.cuh']
     file_contents = [(run_command(f"cat {file}", capture_output=True, text=True).stdout, file) for file in files_to_write]
     profile_temp.remote(file_contents)
     # check_nvidia_smi.remote()
