@@ -43,6 +43,7 @@ __global__ void kernel4(const int M, const int N, const int K, const float *A, c
     const uint innerColB = threadIdx.x % BN;
     const uint innerRowB = threadIdx.x / BN;
 
+    #pragma unroll
     for (uint block = 0; block < K; block += BK) {
         // Fetch and store in SMEM
         As[innerColA + innerRowA * BK] = A[innerColA + innerRowA * K];
@@ -53,8 +54,10 @@ __global__ void kernel4(const int M, const int N, const int K, const float *A, c
         B += BK * N;
 
         // Calculate thread results (one column of C) block by block
+        #pragma unroll
         for (uint b_elem = 0; b_elem < BK; ++b_elem) {
             float tmp_B = Bs[b_elem * BN + threadCol];
+            #pragma unroll
             for (uint a_elem = 0; a_elem < TM; ++a_elem) {
                 threadResults[a_elem] += As[(threadRow * TM + a_elem) * BK + b_elem] * tmp_B;
             }
@@ -63,6 +66,7 @@ __global__ void kernel4(const int M, const int N, const int K, const float *A, c
         
         
     }
+    #pragma unroll
     for (uint i = 0; i < TM; ++i)
     {
         C[N *(threadRow * TM + i) + threadCol] = threadResults[i] + C[N *(threadRow * TM + i) + threadCol];
