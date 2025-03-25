@@ -43,7 +43,6 @@ __global__ void kernel4(const int M, const int N, const int K, const float *A, c
     const uint innerColB = threadIdx.x % BN;
     const uint innerRowB = threadIdx.x / BN;
 
-    #pragma unroll
     for (uint block = 0; block < K; block += BK) {
         // Fetch and store in SMEM
         As[innerColA + innerRowA * BK] = A[innerColA + innerRowA * K];
