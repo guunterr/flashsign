@@ -18,7 +18,7 @@
 
 
 template <const int BM, const int BN, const int BK, const int TM>
-__global__ void kernel4(int M, int N, int K, const float *A, const float *B, float *C) {
+__global__ void kernel4(const int M, const int N, const int K, const float *A, const float *B, float *C) {
     float threadResults[TM] = {0.0};
 
     const uint cRow = blockIdx.y;
