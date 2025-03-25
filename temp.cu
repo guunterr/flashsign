@@ -296,13 +296,13 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
 int main(void) {
     test_kernel(2, false);
     test_kernel(3, false);
-    test_kernel(4, false);
+    test_kernel(4, true, 4);
     // time_kernel(2, 1024);
     // time_kernel(3, 1024);
     // time_kernel(1, 4096, 0, 3);
-    time_kernel(2, 4096, 1, 2);
-    time_kernel(3, 4096, 1, 2);
-    time_kernel(4, 4096, 1, 2);
+    time_kernel(2, 4096, 0, 1);
+    time_kernel(3, 4096, 0, 1);
+    time_kernel(4, 4096, 0, 1);
 
     return 0;
 }
