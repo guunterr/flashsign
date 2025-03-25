@@ -3,6 +3,7 @@
 
 ssh-keygen -R $1
 ssh root@$1 '\
+    export PATH="/usr/local/cuda/bin:$PATH"; \
     cd flashsign; \
     eval $(ssh-agent -s); \
     ssh-add ~/datacrunch_flashsign_key \ 
