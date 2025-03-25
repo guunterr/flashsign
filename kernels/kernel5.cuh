@@ -16,54 +16,83 @@
 #include <random>
 #include <vector>
 
-
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
-__global__ void kernel5(int M, int N, int K, const float *A, const float *B, float *C) {
-    float threadResults[TM] = {0.0};
+__global__ void kernel5(int M, int N, int K, float *A, float *B, float *C) {
+    const uint cBlockRow = blockIdx.y;
+    const uint cBlockCol = blockIdx.x;
 
-    const uint cRow = blockIdx.y;
-    const uint cCol = blockIdx.x;
+    const uint totalResultsPerBlock = BM * BN;
+    const uint totalResultsPerThread = TM * TN;
 
-    const uint threadCol = threadIdx.x % BN;
-    const uint threadRow = threadIdx.x / BN;
+    // Res/Block / Res/Thread = Thread/Block which should be blockDim.x
+    assert(totalResultsPerBlock / totalResultsPerThread == blockDim.x);
+
+    // We use BN/TN threads per column of the block of C we compute
+    // Columns are contiguous in memory
+    const uint threadBlockCol = threadIdx.x % (BN / TN);
+    const uint threadBlockRow = threadIdx.x / (BN / TN);
 
     __shared__ float As[BM * BK];
     __shared__ float Bs[BK * BN];
 
-    int Ablock = cRow * K * BM;
-    int Bblock = cCol * BN;
-    int Cblock = cRow * N * BM + cCol * BN;
+    // Move pointers to the start of the row of A, column of B and block of C
+    A += cBlockRow * BM * K;
+    B += cBlockCol * BN;
+    C += cBlockRow * N * BM + cBlockCol * BN;
 
-    assert(BM * BK == blockDim.x);
-    assert(BK * BN == blockDim.x);
+    // Indices that the thread loads into SMEM
+    const uint aInnerBlockCol = threadIdx.x % BK;
+    const uint aInnerBlockRow = threadIdx.x / BK;
+    const uint strideA = blockDim.x / BK;
 
-    // Move along columns first then rows because cols are contiguous in memory
-    const uint innerColA = threadIdx.x % BK;
-    const uint innerRowA = threadIdx.x / BK;
-    const uint innerColB = threadIdx.x % BN;
-    const uint innerRowB = threadIdx.x / BN;
+    const uint bInnerBlockCol = threadIdx.x % BN;
+    const uint bInnerBlockRow = threadIdx.x / BN;
+    const uint strideB = blockDim.x / BN;
+
+    float threadResults[TM * TN] = {0.0};
+    float regM[TM] = {0.0};
+    float regN[TN] = {0.0};
 
     for (uint block = 0; block < K; block += BK) {
-        // Fetch and store in GMEM
-        As[innerColA + innerRowA * BK] = A[Ablock + innerColA + innerRowA * K];
-        Bs[innerColB + innerRowB * BN] = B[Bblock + innerColB + innerRowB * N];
+        // Populate SMEM Caches
+        for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
+            As[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol] =
+                A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol];
+        }
+        for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
+            Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol] =
+                B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol];
+        }
         __syncthreads();
-        // Advance to next block
-        Ablock += BK;
-        Bblock += BK * N;
 
-        // Calculate thread results (one column of C) block by block
-        for (uint b_elem = 0; b_elem < BK; b_elem++) {
-            float tmp_B = Bs[b_elem * BN + threadCol];
-            for (uint a_elem = 0; a_elem < TM; a_elem++) {
-                threadResults[a_elem] += As[(threadRow * TM + a_elem) * BK + b_elem] * tmp_B;
+        // Advance blocktile
+        A += BK;
+        B += BK * N;
+
+        // Calculate thread's results to local registers
+        for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
+            // Load block into registers
+            for (uint i = 0; i < TM; i++) {
+                regM[i] = As[(threadBlockRow * TM + i) * BK + dotIdx];
+            }
+            for (uint i = 0; i < TN; i++) {
+                regN[i] = Bs[dotIdx * BN + threadBlockCol * TN + i];
+                x
+            }
+            for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
+                for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
+                    threadResults[resIdxM * TN + resIdxN] +=
+                        regM[resIdxM] * regN[resIdxN];
+                }
             }
         }
         __syncthreads();
-        for (uint i = 0; i < TM; i++)
-        {
-            C[Cblock + N *(threadRow * TM + i) + threadCol] += threadResults[i];
-        }
-        
     }
+    for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
+        for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
+            C[(threadBlockRow * TM + resIdxM) * N + threadCol * TN + resIdxN] += threadResults[resIdxM * TN + resIdxN];
+        }
+    }
+    
+// Write local registers to GMEM
 }
