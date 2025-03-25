@@ -53,16 +53,16 @@ __global__ void kernel4(int M, int N, int K, const float *A, const float *B, flo
         B += BK * N;
 
         // Calculate thread results (one column of C) block by block
-        for (uint b_elem = 0; b_elem < BK; b_elem++) {
+        for (uint b_elem = 0; b_elem < BK; ++b_elem) {
             float tmp_B = Bs[b_elem * BN + threadCol];
-            for (uint a_elem = 0; a_elem < TM; a_elem++) {
+            for (uint a_elem = 0; a_elem < TM; ++a_elem) {
                 threadResults[a_elem] += As[(threadRow * TM + a_elem) * BK + b_elem] * tmp_B;
             }
         }
         __syncthreads();
-        for (uint i = 0; i < TM; i++)
+        for (uint i = 0; i < TM; ++i)
         {
-            C[N *(threadRow * TM + i) + threadCol] += threadResults[i];
+            C[N *(threadRow * TM + i) + threadCol] = threadResults[i] + C[N *(threadRow * TM + i) + threadCol];
         }
         
     }
