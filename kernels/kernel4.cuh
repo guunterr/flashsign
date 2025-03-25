@@ -60,10 +60,11 @@ __global__ void kernel4(int M, int N, int K, const float *A, const float *B, flo
             }
         }
         __syncthreads();
-        for (uint i = 0; i < TM; ++i)
-        {
-            C[N *(threadRow * TM + i) + threadCol] = threadResults[i] + C[N *(threadRow * TM + i) + threadCol];
-        }
         
+        
+    }
+    for (uint i = 0; i < TM; ++i)
+    {
+        C[N *(threadRow * TM + i) + threadCol] = threadResults[i] + C[N *(threadRow * TM + i) + threadCol];
     }
 }
