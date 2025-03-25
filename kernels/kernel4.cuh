@@ -30,9 +30,9 @@ __global__ void kernel4(int M, int N, int K, const float *A, const float *B, flo
     __shared__ float As[BM * BK];
     __shared__ float Bs[BK * BN];
 
-    int Ablock = cRow * K * BM;
-    int Bblock = cCol * BN;
-    int Cblock = cRow * N * BM + cCol * BN;
+    A += cRow * K * BM;
+    B += cCol * BN;
+    C += cRow * N * BM + cCol * BN;
 
     assert(BM * BK == blockDim.x);
     assert(BK * BN == blockDim.x);
@@ -44,13 +44,13 @@ __global__ void kernel4(int M, int N, int K, const float *A, const float *B, flo
     const uint innerRowB = threadIdx.x / BN;
 
     for (uint block = 0; block < K; block += BK) {
-        // Fetch and store in GMEM
-        As[innerColA + innerRowA * BK] = A[Ablock + innerColA + innerRowA * K];
-        Bs[innerColB + innerRowB * BN] = B[Bblock + innerColB + innerRowB * N];
+        // Fetch and store in SMEM
+        As[innerColA + innerRowA * BK] = A[innerColA + innerRowA * K];
+        Bs[innerColB + innerRowB * BN] = B[innerColB + innerRowB * N];
         __syncthreads();
         // Advance to next block
-        Ablock += BK;
-        Bblock += BK * N;
+        A += BK;
+        B += BK * N;
 
         // Calculate thread results (one column of C) block by block
         for (uint b_elem = 0; b_elem < BK; b_elem++) {
@@ -62,7 +62,7 @@ __global__ void kernel4(int M, int N, int K, const float *A, const float *B, flo
         __syncthreads();
         for (uint i = 0; i < TM; i++)
         {
-            C[Cblock + N *(threadRow * TM + i) + threadCol] += threadResults[i];
+            C[N *(threadRow * TM + i) + threadCol] += threadResults[i];
         }
         
     }
