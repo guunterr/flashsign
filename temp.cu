@@ -260,7 +260,7 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     cudaDeviceSynchronize();
     // Run reference kernel 1 and current kernel
     run_kernel(kernel_number, N, N, N, d_a, d_b, d_c2);
-    run_kernel(1, N, N, N, d_a, d_b, d_c1);
+    run_kernel(3, N, N, N, d_a, d_b, d_c1);
     cudaDeviceSynchronize();
 
     // Copy reference kernel 1 and current kernel results back to host
@@ -302,7 +302,7 @@ int main(void) {
     // time_kernel(1, 4096, 0, 3);
     // time_kernel(2, 4096, 0, 1);
     // time_kernel(3, 4096, 0, 1);
-    time_kernel(4, 4096, 0, 3);
+    time_kernel(4, 4096, 0, 10);
 
     return 0;
 }
