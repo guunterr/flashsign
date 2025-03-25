@@ -235,16 +235,16 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     randomise_matrix(c1, N * N);
     memcpy(c2, c1, N * N * sizeof(float));
 
-    if (print) {
-        printf("A: %dx%d\n", N, N);
-        print_matrix(a, N, N);
-        printf("B: %dx%d\n", N, N);
-        print_matrix(b, N, N);
-        printf("C: %dx%d\n", N, N);
-        print_matrix(c1, N, N);
-        printf("C: %dx%d\n", N, N);
-        print_matrix(c2, N, N);
-    }
+    // if (print) {
+    //     printf("A: %dx%d\n", N, N);
+    //     print_matrix(a, N, N);
+    //     printf("B: %dx%d\n", N, N);
+    //     print_matrix(b, N, N);
+    //     printf("C: %dx%d\n", N, N);
+    //     print_matrix(c1, N, N);
+    //     printf("C: %dx%d\n", N, N);
+    //     print_matrix(c2, N, N);
+    // }
 
     // Allocate memory on device
     cudaMalloc((void **)&d_a, N * N * sizeof(float));
