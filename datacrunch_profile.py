@@ -6,7 +6,7 @@ from datacrunch import DataCrunchClient
 import datacrunch.constants
 
 CLIENT_SECRET = os.environ.get('DATACRUNCH_CLIENT_SECRET')
-CLIENT_ID = "K5iwNZjT2TDZsF8ByHdZ2"
+CLIENT_ID = "RFhYGYM8Ag6o4zsmoHb14"
 OS_VOLUME_ID = "5159fe7c-8154-4d09-8893-27a004a6b428"
 
 dc_client = DataCrunchClient(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
@@ -41,5 +41,3 @@ else:
     instance = dc_client.instances.get()[0]
     print("Instance already exists, deleting...")
     dc_client.instances.action(instance.id, 'delete')
-
-print(f"Instance status: {instance.status}")
