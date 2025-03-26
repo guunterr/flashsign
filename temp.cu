@@ -302,7 +302,7 @@ int main(void) {
     // time_kernel(1, 4096, 0, 3);
     // time_kernel(2, 4096, 0, 1);
     // time_kernel(3, 4096, 0, 1);
-    time_kernel(4, 4096, 3, 10);
+    time_kernel(4, 4096, 0, 3);
 
     return 0;
 }
