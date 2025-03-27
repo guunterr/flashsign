@@ -12,6 +12,4 @@ ssh root@$1 "\
     chmod +x do_profile.sh; \
     ./do_profile.sh $2;"
 
-scp root@$1:~/flashsign/out/profile* out/
-scp root@$1:~/flashsign/out/test*.txt out/
-scp root@$1:~/flashsign/out/benchmark*.txt out/
+scp root@$1:~/flashsign/out/profile* root@$1:~/flashsign/out/test* root@$1:~/flashsign/out/benchmark* out/
