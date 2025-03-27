@@ -294,7 +294,7 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
 }
 
 int main(int argc, char* argv[]) {
-    if argc > 1{
+    if (argc > 1){
         int kernel_number = atoi(argv[1]);
         int warmup = atoi(argv[2]);
         int runs = atoi(argv[3]);
