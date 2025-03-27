@@ -18,6 +18,7 @@
 #include "kernels/kernel2.cuh"
 #include "kernels/kernel3.cuh"
 #include "kernels/kernel4.cuh"
+#include "kernels/kernel5.cuh"
 
 std::default_random_engine generator = std::default_random_engine(time(0));
 
