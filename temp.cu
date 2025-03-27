@@ -293,7 +293,18 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     return;
 }
 
-int main(void) {
+int main(int argc, char* argv[]) {
+    if argc > 1{
+        int kernel_number = atoi(argv[1]);
+        int warmup = atoi(argv[2]);
+        int runs = atoi(argv[3]);
+        if(kernel_number == 0 || runs == 0){
+            printf("Invalid arguments")
+        }
+        time_kernel(kernel_number, 4096, warmup, runs);
+    } else{
+        time_kernel(4, 4096, 1, 3);
+    }
     // test_kernel(2, false);
     // test_kernel(3, false);
     // test_kernel(4, true, 64);
@@ -302,7 +313,7 @@ int main(void) {
     // time_kernel(1, 4096, 0, 3);
     // time_kernel(2, 4096, 0, 1);
     // time_kernel(3, 4096, 0, 1);
-    time_kernel(4, 4096, 0, 3);
+    time_kernel(4, 4096, 1, 3);
 
     return 0;
 }
