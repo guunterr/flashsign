@@ -98,7 +98,18 @@ void run_kernel4(int M, int N, int K, const float *A, const float *B, float *C) 
 }
 
 void run_kernel5(int M, int N,  int K, const float *A, const float *B, float *C) {
-    printf("UNIMPLEMENTED\n");
+    const int BK = 8;
+    const int TM = 8;
+    const int TN = 8;
+    const int BM = 64;
+    const int BN = 64;
+    dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
+    dim3 blockDim((BM * BN) / (TM * TN));
+    kernel5<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error in run_kernel5: %s\n", cudaGetErrorString(err));
+    }
     return;
 }
 
@@ -304,8 +315,8 @@ int main(int argc, char* argv[]) {
         printf("Running kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
         time_kernel(kernel_number, 4096, warmup, runs);
     } else{
-        printf("Running kernel 4 for 1 warmup and 3 runs\n");
-        time_kernel(4, 4096, 1, 3);
+        printf("Testing kernel 5\n");
+        test_kernel(4, false);
     }
     // test_kernel(2, false);
     // test_kernel(3, false);
