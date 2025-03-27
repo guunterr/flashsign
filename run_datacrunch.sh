@@ -1,4 +1,4 @@
-#First argument is IP address
+#First argument is IP address, second is kernel number
 
 
 ssh-keygen -R $1
@@ -10,7 +10,7 @@ ssh root@$1 '\
     git reset --hard origin/master; \
     git pull origin kernel5; \
     chmod +x do_profile.sh; \
-    ./do_profile.sh;'
+    ./do_profile.sh $2;'
 
 scp root@$1:~/flashsign/out/profile* out/
 scp root@$1:~/flashsign/out/test*.txt out/
