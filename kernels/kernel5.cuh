@@ -70,14 +70,18 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
         B += BK * N;
 
         // Calculate thread's results to local registers
+        #pragma unroll
         for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
             // Load block into registers
+            #pragma unroll
             for (uint i = 0; i < TM; i++) {
                 regM[i] = As[(threadBlockRow * TM + i) * BK + dotIdx];
             }
+            #pragma unroll
             for (uint i = 0; i < TN; i++) {
                 regN[i] = Bs[dotIdx * BN + threadBlockCol * TN + i];
             }
+            #pragma unroll
             for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
                 for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
                     threadResults[resIdxM * TN + resIdxN] +=

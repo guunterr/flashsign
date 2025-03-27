@@ -102,8 +102,8 @@ void run_kernel5(int M, int N,  int K, const float *A, const float *B, float *C)
     const int BK = 8;
     const int TM = 8;
     const int TN = 8;
-    const int BM = 64;
-    const int BN = 64;
+    const int BM = 128;
+    const int BN = 128;
     dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
     dim3 blockDim((BM * BN) / (TM * TN));
     kernel5<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);

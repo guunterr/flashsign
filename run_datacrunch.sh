@@ -13,4 +13,5 @@ ssh root@$1 '\
     ./do_profile.sh;'
 
 scp root@$1:~/flashsign/out/profile* out/
-scp root@$1:~/flashsign/out/output*.txt out/
+scp root@$1:~/flashsign/out/test*.txt out/
+scp root@$1:~/flashsign/out/benchmark*.txt out/
