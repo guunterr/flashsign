@@ -306,18 +306,18 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc > 1){
-        int kernel_number = atoi(argv[1]);
-        int warmup = atoi(argv[2]);
-        int runs = atoi(argv[3]);
-        if(kernel_number == 0 || runs == 0){
-            printf("Invalid arguments\n");
-        }
+    int kernel_number = atoi(argv[2]);
+    int warmup = atoi(argv[3]);
+    int runs = atoi(argv[4]);
+    if(kernel_number == 0 || runs == 0){
+        printf("Invalid arguments\n");
+    }
+    if (argv[1][0] == 'r'){
         printf("Running kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
         time_kernel(kernel_number, 4096, warmup, runs);
     } else{
-        printf("Testing kernel 5\n");
-        test_kernel(4, false);
+        printf("Testing kernel %d\n", kernel_number);
+        test_kernel(kernel_number, false);
     }
     // test_kernel(2, false);
     // test_kernel(3, false);
