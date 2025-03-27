@@ -18,7 +18,10 @@
 
 
 template <const int BM, const int BN, const int BK, const int TM>
-__global__ void kernel4(int M, int N, int K, const float *A, const float *B, float *C) {
+__global__ void kernel4(const int M, const int N, const int K, const float *A, const float *B, float *C) {
+    __builtin_assume_aligned(A, 16);
+    __builtin_assume_aligned(B, 16);
+    __builtin_assume_aligned(C, 16);
     float threadResults[TM] = {0.0};
 
     const uint cRow = blockIdx.y;
@@ -53,17 +56,21 @@ __global__ void kernel4(int M, int N, int K, const float *A, const float *B, flo
         B += BK * N;
 
         // Calculate thread results (one column of C) block by block
-        for (uint b_elem = 0; b_elem < BK; b_elem++) {
+        #pragma unroll
+        for (uint b_elem = 0; b_elem < BK; ++b_elem) {
             float tmp_B = Bs[b_elem * BN + threadCol];
-            for (uint a_elem = 0; a_elem < TM; a_elem++) {
+            #pragma unroll
+            for (uint a_elem = 0; a_elem < TM; ++a_elem) {
                 threadResults[a_elem] += As[(threadRow * TM + a_elem) * BK + b_elem] * tmp_B;
             }
         }
         __syncthreads();
-        for (uint i = 0; i < TM; i++)
-        {
-            C[N *(threadRow * TM + i) + threadCol] += threadResults[i];
-        }
         
+        
+    }
+    #pragma unroll
+    for (uint i = 0; i < TM; ++i)
+    {
+        C[N *(threadRow * TM + i) + threadCol] = threadResults[i] + C[N *(threadRow * TM + i) + threadCol];
     }
 }

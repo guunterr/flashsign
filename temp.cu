@@ -18,6 +18,7 @@
 #include "kernels/kernel2.cuh"
 #include "kernels/kernel3.cuh"
 #include "kernels/kernel4.cuh"
+#include "kernels/kernel5.cuh"
 
 std::default_random_engine generator = std::default_random_engine(time(0));
 
@@ -98,7 +99,18 @@ void run_kernel4(int M, int N, int K, const float *A, const float *B, float *C) 
 }
 
 void run_kernel5(int M, int N,  int K, const float *A, const float *B, float *C) {
-    printf("UNIMPLEMENTED\n");
+    const int BK = 8;
+    const int TM = 8;
+    const int TN = 8;
+    const int BM = 64;
+    const int BN = 64;
+    dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
+    dim3 blockDim((BM * BN) / (TM * TN));
+    kernel5<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error in run_kernel5: %s\n", cudaGetErrorString(err));
+    }
     return;
 }
 
@@ -235,16 +247,16 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     randomise_matrix(c1, N * N);
     memcpy(c2, c1, N * N * sizeof(float));
 
-    if (print) {
-        printf("A: %dx%d\n", N, N);
-        print_matrix(a, N, N);
-        printf("B: %dx%d\n", N, N);
-        print_matrix(b, N, N);
-        printf("C: %dx%d\n", N, N);
-        print_matrix(c1, N, N);
-        printf("C: %dx%d\n", N, N);
-        print_matrix(c2, N, N);
-    }
+    // if (print) {
+    //     printf("A: %dx%d\n", N, N);
+    //     print_matrix(a, N, N);
+    //     printf("B: %dx%d\n", N, N);
+    //     print_matrix(b, N, N);
+    //     printf("C: %dx%d\n", N, N);
+    //     print_matrix(c1, N, N);
+    //     printf("C: %dx%d\n", N, N);
+    //     print_matrix(c2, N, N);
+    // }
 
     // Allocate memory on device
     cudaMalloc((void **)&d_a, N * N * sizeof(float));
@@ -260,7 +272,7 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     cudaDeviceSynchronize();
     // Run reference kernel 1 and current kernel
     run_kernel(kernel_number, N, N, N, d_a, d_b, d_c2);
-    run_kernel(1, N, N, N, d_a, d_b, d_c1);
+    run_kernel(3, N, N, N, d_a, d_b, d_c1);
     cudaDeviceSynchronize();
 
     // Copy reference kernel 1 and current kernel results back to host
@@ -293,16 +305,28 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     return;
 }
 
-int main(void) {
-    test_kernel(2, false);
-    test_kernel(3, false);
-    test_kernel(4, false);
+int main(int argc, char* argv[]) {
+    if (argc > 1){
+        int kernel_number = atoi(argv[1]);
+        int warmup = atoi(argv[2]);
+        int runs = atoi(argv[3]);
+        if(kernel_number == 0 || runs == 0){
+            printf("Invalid arguments\n");
+        }
+        printf("Running kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
+        time_kernel(kernel_number, 4096, warmup, runs);
+    } else{
+        printf("Testing kernel 5\n");
+        test_kernel(4, false);
+    }
+    // test_kernel(2, false);
+    // test_kernel(3, false);
+    // test_kernel(4, true, 64);
     // time_kernel(2, 1024);
     // time_kernel(3, 1024);
     // time_kernel(1, 4096, 0, 3);
-    time_kernel(2, 4096, 1, 2);
-    time_kernel(3, 4096, 1, 2);
-    time_kernel(4, 4096, 1, 2);
+    // time_kernel(2, 4096, 0, 1);
+    // time_kernel(3, 4096, 0, 1);
 
     return 0;
 }
