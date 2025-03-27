@@ -320,10 +320,8 @@ void get_device_properties(){
     printf("Warp Allocation Granularity: %d\n", prop.warpSize);
     printf("Regs/Block: %d\n", prop.regsPerBlock);
     printf("Regs/SM: %d\n", prop.regsPerMultiprocessor);
-    printf("Register Allocation Unit Size: %d\n", prop.regsPerBlock);
-    printf("Register Allocation Granularity: %d\n", prop.regsPerBlock);
-    printf("Total Global Mem: %zu bytes\n", prop.totalGlobalMem);
-    printf("Shared Mem per Block: %zu bytes\n", prop.sharedMemPerBlock);
+    printf("Total Global Mem: %zu MB\n", prop.totalGlobalMem / 1024 / 1024);
+    printf("Shared Mem per Block: %zu KB \n", prop.sharedMemPerBlock / 1024);
     printf("Smem Overhead from CUDA Runtime: %zu bytes\n", prop.sharedMemPerBlockOptin);
     printf("Smem per SM: %zu bytes\n", prop.sharedMemPerMultiprocessor);
     printf("SM Count: %d\n", prop.multiProcessorCount);
