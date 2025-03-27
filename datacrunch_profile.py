@@ -41,5 +41,5 @@ else:
     instance = dc_client.instances.get()[0]
     print(f"Instance {instance.status}, ip = {instance.ip}")
     # dc_client.instances.action(instance.id, dc_client.constants.instance_actions.HIBERNATE)
-print("Running profile...")
-run_profile(instance.ip)
+# print("Running profile...")
+# run_profile(instance.ip)

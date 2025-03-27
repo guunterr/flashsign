@@ -299,7 +299,7 @@ int main(int argc, char* argv[]) {
         int warmup = atoi(argv[2]);
         int runs = atoi(argv[3]);
         if(kernel_number == 0 || runs == 0){
-            printf("Invalid arguments")
+            printf("Invalid arguments");
         }
         time_kernel(kernel_number, 4096, warmup, runs);
     } else{
