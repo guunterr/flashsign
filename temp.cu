@@ -299,10 +299,12 @@ int main(int argc, char* argv[]) {
         int warmup = atoi(argv[2]);
         int runs = atoi(argv[3]);
         if(kernel_number == 0 || runs == 0){
-            printf("Invalid arguments");
+            printf("Invalid arguments\n");
         }
+        printf("Running kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
         time_kernel(kernel_number, 4096, warmup, runs);
     } else{
+        printf("Running kernel 4 for 1 warmup and 3 runs\n")
         time_kernel(4, 4096, 1, 3);
     }
     // test_kernel(2, false);
