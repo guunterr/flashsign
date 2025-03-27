@@ -327,7 +327,7 @@ void get_device_properties(){
     printf("Smem Overhead from CUDA Runtime: %zu bytes\n", prop.sharedMemPerBlockOptin);
     printf("Smem per SM: %zu bytes\n", prop.sharedMemPerMultiprocessor);
     printf("SM Count: %d\n", prop.multiProcessorCount);
-    printf("Max Warps per SM: %d\n", prop.maxWarpsPerMultiprocessor);
+    printf("Max Warps per SM: %d\n", prop.maxThreadsPerMultiProcessor / prop.warpSize);
 }
 
 int main(int argc, char* argv[]) {
