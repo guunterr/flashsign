@@ -305,7 +305,33 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     return;
 }
 
+void get_device_properties(){
+    int device;
+    cudaGetDevice(&device);
+
+    struct cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, device);
+
+    printf("Device Name: %s\n", prop.name);
+    printf("Compute Capability: %d.%d\n", prop.major, prop.minor);
+    printf("Threads/Block: %d\n", prop.maxThreadsPerBlock);
+    printf("Threads/SM: %d\n", prop.maxThreadsPerMultiProcessor);
+    printf("Threads/Warp: %d\n", prop.warpSize);
+    printf("Warp Allocation Granularity: %d\n", prop.warpSize);
+    printf("Regs/Block: %d\n", prop.regsPerBlock);
+    printf("Regs/SM: %d\n", prop.regsPerMultiProcessor);
+    printf("Register Allocation Unit Size: %d\n", prop.regsPerBlock);
+    printf("Register Allocation Granularity: %d\n", prop.regsPerBlock);
+    printf("Total Global Mem: %zu bytes\n", prop.totalGlobalMem);
+    printf("Shared Mem per Block: %zu bytes\n", prop.sharedMemPerBlock);
+    printf("Smem Overhead from CUDA Runtime: %zu bytes\n", prop.sharedMemPerBlockOptin);
+    printf("Smem per SM: %zu bytes\n", prop.sharedMemPerMultiProcessor);
+    printf("SM Count: %d\n", prop.multiProcessorCount);
+    printf("Max Warps per SM: %d\n", prop.maxWarpsPerMultiProcessor);
+}
+
 int main(int argc, char* argv[]) {
+    get_device_properties();
     int kernel_number = atoi(argv[2]);
     int warmup = atoi(argv[3]);
     int runs = atoi(argv[4]);
