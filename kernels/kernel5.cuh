@@ -77,7 +77,6 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
             }
             for (uint i = 0; i < TN; i++) {
                 regN[i] = Bs[dotIdx * BN + threadBlockCol * TN + i];
-                x
             }
             for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
                 for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
@@ -91,7 +90,7 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
     // Write local registers to GMEM
     for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
         for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
-            C[(threadBlockRow * TM + resIdxM) * N + threadCol * TN + resIdxN] += threadResults[resIdxM * TN + resIdxN];
+            C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN] += threadResults[resIdxM * TN + resIdxN];
         }
     }
     
