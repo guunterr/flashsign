@@ -18,9 +18,6 @@
 
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
 __global__ void kernel5(const int M, const int N, const int K, const float *A, const float *B, float *C) {
-    __builtin_assume_aligned(A, 16);
-    __builtin_assume_aligned(B, 16);
-    __builtin_assume_aligned(C, 16);
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
 
