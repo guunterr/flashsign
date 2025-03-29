@@ -97,20 +97,14 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
     #pragma unroll
     for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
         #pragma unroll
-        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 1) {
-            C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN] += threadResults[resIdxM * TN + resIdxN];
+        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
+            float4 tmp = reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0];
+            tmp.x += threadResults[resIdxM * TN + resIdxN];
+            tmp.y += threadResults[resIdxM * TN + resIdxN + 1];
+            tmp.z += threadResults[resIdxM * TN + resIdxN + 2];
+            tmp.w += threadResults[resIdxM * TN + resIdxN + 3];
+            reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0] = tmp;
         }
-
-        //Vectorised Load
-        // #pragma unroll
-        // for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
-        //     float4 tmp = reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0];
-        //     tmp.x += threadResults[resIdxM * TN + resIdxN];
-        //     tmp.y += threadResults[resIdxM * TN + resIdxN + 1];
-        //     tmp.z += threadResults[resIdxM * TN + resIdxN + 2];
-        //     tmp.w += threadResults[resIdxM * TN + resIdxN + 3];
-        //     reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0] = tmp;
-        // }
     }
     
 
