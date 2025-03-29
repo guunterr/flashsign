@@ -57,8 +57,8 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
         // Populate SMEM Caches
         #pragma unroll
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            As[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol] =
-                A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol];
+            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol])[0];
+            reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol])[0] = tmp;
         }
         #pragma unroll
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
