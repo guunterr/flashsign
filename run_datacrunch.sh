@@ -12,10 +12,11 @@ ssh root@$1 "\
     chmod +x do_profile.sh; \
     ./do_profile.sh $2;"
 
-datetime = $(date +%m-%d_%H:%M:%S)
+datetime=$(date +%m-%d_%H:%M:%S)
+echo $datetime
 
 mkdir profiles/$2
-mkdir profiles/$2/datetime
-mkdir profiles/$2/datetime/kernels
-scp root@$1:~/flashsign/out/profile* root@$1:~/flashsign/out/test* root@$1:~/flashsign/out/benchmark* profiles/$2/datetime
-scp root@$1:oot@$1:~/flashsign/kernels/* profiles/$2/datetime/kernels/
+mkdir profiles/$2/$datetime
+mkdir profiles/$2/$datetime/kernels
+scp root@$1:~/flashsign/out/profile* root@$1:~/flashsign/out/test* root@$1:~/flashsign/out/benchmark* profiles/$2/$datetime/
+scp root@$1:~/flashsign/kernels/* profiles/$2/$datetime/kernels/
