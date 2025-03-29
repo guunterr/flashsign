@@ -100,7 +100,7 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
     #pragma unroll
     for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
         #pragma unroll
-        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
+        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 1) {
             C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN] += threadResults[resIdxM * TN + resIdxN];
         }
 
