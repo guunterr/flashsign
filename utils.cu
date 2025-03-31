@@ -32,7 +32,6 @@ int ceil_div(int a, int b) {
     return (a / b) + (a % b != 0);
 }
 
-
 void print_matrix(float *matrix, int M, int N) {
     for (size_t i = 0; i < M; i++) {
         for (size_t j = 0; j < N; j++) {
@@ -42,7 +41,6 @@ void print_matrix(float *matrix, int M, int N) {
     }
     return;
 }
-
 
 void get_device_properties() {
     int device;

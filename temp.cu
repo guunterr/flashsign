@@ -14,21 +14,22 @@
 #include <iostream>
 #include <random>
 #include <vector>
-#include "utils.cu"
+
 #include "runners.cu"
+#include "utils.cu"
 
 int main(int argc, char* argv[]) {
     get_device_properties();
     int kernel_number = atoi(argv[2]);
     int warmup = atoi(argv[3]);
     int runs = atoi(argv[4]);
-    if(kernel_number == 0 || runs == 0){
+    if (kernel_number == 0 || runs == 0) {
         printf("Invalid arguments\n");
     }
-    if (argv[1][0] == 'r'){
+    if (argv[1][0] == 'r') {
         printf("Running kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
         time_kernel(kernel_number, 4096, warmup, runs);
-    } else{
+    } else {
         printf("Testing kernel %d\n", kernel_number);
         test_kernel(kernel_number, false);
     }

@@ -5,6 +5,7 @@
 #include "kernels/kernel3.cuh"
 #include "kernels/kernel4.cuh"
 #include "kernels/kernel5.cuh"
+#include "kernels/kernel6.cuh"
 #include "utils.cu"
 
 void run_kernel1(int M, int N, int K, const float *A, const float *B, float *C) {
@@ -33,8 +34,8 @@ void run_kernel3(int M, int N, int K, const float *A, const float *B, float *C) 
     dim3 gridDim(ceil_div(M, 32), ceil_div(N, 32));
     dim3 blockDim(32 * 32);
     cudaFuncSetAttribute(kernel3<32>,
-        cudaFuncAttributePreferredSharedMemoryCarveout,
-        cudaSharedmemCarveoutMaxShared);
+                         cudaFuncAttributePreferredSharedMemoryCarveout,
+                         cudaSharedmemCarveoutMaxShared);
     kernel3<32><<<gridDim, blockDim>>>(M, N, K, A, B, C);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -44,13 +45,13 @@ void run_kernel3(int M, int N, int K, const float *A, const float *B, float *C) 
 }
 
 void run_kernel4(int M, int N, int K, const float *A, const float *B, float *C) {
-    //BK = BN/TM = BM/TM
+    // BK = BN/TM = BM/TM
     const int BK = 8;
     const int TM = 8;
     const int BM = 64;
     const int BN = 64;
     dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
-    dim3 blockDim((BM * BN)/TM);
+    dim3 blockDim((BM * BN) / TM);
     kernel4<BM, BN, BK, TM><<<gridDim, blockDim>>>(M, N, K, A, B, C);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -59,7 +60,7 @@ void run_kernel4(int M, int N, int K, const float *A, const float *B, float *C) 
     return;
 }
 
-void run_kernel5(int M, int N,  int K, const float *A, const float *B, float *C) {
+void run_kernel5(int M, int N, int K, const float *A, const float *B, float *C) {
     const int BK = 8;
     const int TM = 8;
     const int TN = 8;
@@ -71,6 +72,22 @@ void run_kernel5(int M, int N,  int K, const float *A, const float *B, float *C)
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         printf("CUDA error in run_kernel5: %s\n", cudaGetErrorString(err));
+    }
+    return;
+}
+
+void run_kernel6(int M, int N, int K, const float *A, const float *B, float *C) {
+    const int BK = 8;
+    const int TM = 8;
+    const int TN = 8;
+    const int BM = 64;
+    const int BN = 64;
+    dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
+    dim3 blockDim((BM * BN) / (TM * TN));
+    kernel6<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error in run_kernel6: %s\n", cudaGetErrorString(err));
     }
     return;
 }
@@ -92,13 +109,15 @@ void run_kernel(int kernel_number, int M, int N, int K, const float *A, const fl
         case 5:
             run_kernel5(M, N, K, A, B, C);
             break;
+        case 6:
+            run_kernel6(M, N, K, A, B, C);
+            break;
         default:
             printf("Invalid kernel number\n");
             break;
     }
     return;
 }
-
 
 void test_kernel(int kernel_number, bool print = false, int N = 256) {
     float *a, *b, *c1, *c2, *d_a, *d_b, *d_c1, *d_c2;
@@ -169,7 +188,6 @@ void test_kernel(int kernel_number, bool print = false, int N = 256) {
     free(c2);
     return;
 }
-
 
 void time_kernel(int kernel_number, int N = 1 << 12, int warmup = 2, int runs = 5) {
     float *a, *b, *c, *d_a, *d_b, *d_c;
