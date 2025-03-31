@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
         time_kernel(kernel_number, 4096, warmup, runs);
     } else {
         printf("Testing kernel %d\n", kernel_number);
-        test_kernel(kernel_number, true);
+        test_kernel(kernel_number, true, warmup);
     }
 
     return 0;
