@@ -92,7 +92,7 @@ void run_kernel6(int M, int N, int K, float *A, float *B, float *C) {
     return;
 }
 
-void run_kernel(int kernel_number, int M, int N, int K, const float *A, const float *B, float *C) {
+void run_kernel(int kernel_number, int M, int N, int K, float *A, float *B, float *C) {
     switch (kernel_number) {
         case 1:
             run_kernel1(M, N, K, A, B, C);
