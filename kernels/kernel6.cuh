@@ -17,7 +17,7 @@
 #include <vector>
 
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
-__global__ void kernel6(const int M, const int N, const int K, const float *A, const float *B, float *C) {
+__global__ void kernel6(const int M, const int N, const int K, float *A, float *B, float *C) {
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
 
@@ -53,22 +53,22 @@ __global__ void kernel6(const int M, const int N, const int K, const float *A, c
     float regM[TM] = {0.0};
     float regN[TN] = {0.0};
 
-    if(blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 4) {
-        printf("M, N, K, BM, BN, BK: %d, %d, %d, %d, %d, %d\n", M, N, K, BM, BN, BK);
-        printf("TM, TN: %d, %d\n", TM, TN);
-        printf("blockIdx.x, blockIdx.y, threadIdx.x: %d, %d, %d\n", blockIdx.x, blockIdx.y, threadIdx.x);
-        printf("threadBlockCol, threadBlockRow: %d, %d\n", threadBlockCol, threadBlockRow);
-        printf("aInnerBlockCol, aInnerBlockRow: %d, %d\n", aInnerBlockCol, aInnerBlockRow);
-        printf("bInnerBlockCol, bInnerBlockRow: %d, %d\n", bInnerBlockCol, bInnerBlockRow);
-        printf("strideA, strideB: %d, %d\n", strideA, strideB);       
-    }
+    // if(blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 4) {
+    //     printf("M, N, K, BM, BN, BK: %d, %d, %d, %d, %d, %d\n", M, N, K, BM, BN, BK);
+    //     printf("TM, TN: %d, %d\n", TM, TN);
+    //     printf("blockIdx.x, blockIdx.y, threadIdx.x: %d, %d, %d\n", blockIdx.x, blockIdx.y, threadIdx.x);
+    //     printf("threadBlockCol, threadBlockRow: %d, %d\n", threadBlockCol, threadBlockRow);
+    //     printf("aInnerBlockCol, aInnerBlockRow: %d, %d\n", aInnerBlockCol, aInnerBlockRow);
+    //     printf("bInnerBlockCol, bInnerBlockRow: %d, %d\n", bInnerBlockCol, bInnerBlockRow);
+    //     printf("strideA, strideB: %d, %d\n", strideA, strideB);       
+    // }
 
     for (uint block = 0; block < K; block += BK) {
 // Populate SMEM Caches
 #pragma unroll
         // Transpose A to vectorise things
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            float4 tmp = reinterpret_cast<const float4 *>(&A[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol * 4])[0];
+            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol * 4])[0];
             As[(aInnerBlockCol * 4) * BM + aInnerBlockRow] = tmp.x;
             As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow] = tmp.y;
             As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow] = tmp.z;
@@ -77,7 +77,7 @@ __global__ void kernel6(const int M, const int N, const int K, const float *A, c
 #pragma unroll
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
             reinterpret_cast<float4 *>(&Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 4])[0] =
-                reinterpret_cast<const float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
+                reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
         }
         __syncthreads();
 
