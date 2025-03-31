@@ -105,7 +105,8 @@ void run_kernel(int kernel_number, int M, int N, int K, const float *A, const fl
             break;
         case 4:
             run_kernel4(M, N, K, A, B, C);
-            break        case 5:
+            break;
+        case 5:
             run_kernel5(M, N, K, A, B, C);
             break;
         case 6:
