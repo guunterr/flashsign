@@ -18,5 +18,8 @@ echo $datetime
 mkdir profiles/$2
 mkdir profiles/$2/$datetime
 mkdir profiles/$2/$datetime/kernels
-scp root@$1:~/flashsign/out/profile* root@$1:~/flashsign/out/test* root@$1:~/flashsign/out/benchmark* root@$1:~/flashsign/out/compiler* profiles/$2/$datetime/
-scp root@$1:~/flashsign/kernels/* profiles/$2/$datetime/kernels/
+scp root@$1:~/flashsign/out/profile* profiles/$2/$datetime/ &
+scp root@$1:~/flashsign/out/test* profiles/$2/$datetime/ &
+scp root@$1:~/flashsign/out/benchmark* profiles/$2/$datetime/ &
+scp root@$1:~/flashsign/out/compiler* profiles/$2/$datetime/ &
+scp root@$1:~/flashsign/kernels/* profiles/$2/$datetime/kernels/ &
