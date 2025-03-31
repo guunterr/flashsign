@@ -17,7 +17,7 @@
 #include <vector>
 
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
-__global__ void kernel5(const int M, const int N, const int K, const float *A, const float *B, float *C) {
+__global__ void kernel6(const int M, const int N, const int K, const float *A, const float *B, float *C) {
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
 
