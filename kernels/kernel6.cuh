@@ -58,7 +58,7 @@ __global__ void kernel6(const int M, const int N, const int K, const float *A, c
 #pragma unroll
         // Transpose A to vectorise things
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol * 4])[0];
+            float4 tmp = reinterpret_cast<const float4 *>(&A[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol * 4])[0];
             As[(aInnerBlockCol * 4) * BM + aInnerBlockRow] = tmp.x;
             As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow] = tmp.y;
             As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow] = tmp.z;
@@ -67,7 +67,7 @@ __global__ void kernel6(const int M, const int N, const int K, const float *A, c
 #pragma unroll
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
             reinterpret_cast<float4 *>(&Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 4])[0] =
-                reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
+                reinterpret_cast<const float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
         }
         __syncthreads();
 
