@@ -81,7 +81,7 @@ __global__ void kernel6(const int M, const int N, const int K, const float *A, c
 // Load block into registers
 #pragma unroll
             for (uint i = 0; i < TM; i++) {
-                regM[i] = As[threadBlockRow * TM + BK * dotIdx + i];
+                regM[i] = As[threadBlockRow * TM + BM * dotIdx + i];
             }
 #pragma unroll
             for (uint i = 0; i < TN; i++) {
