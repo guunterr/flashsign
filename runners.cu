@@ -76,7 +76,7 @@ void run_kernel5(int M, int N, int K, const float *A, const float *B, float *C) 
     return;
 }
 
-void run_kernel6(int M, int N, int K, const float *A, const float *B, float *C) {
+void run_kernel6(int M, int N, int K, float *A, float *B, float *C) {
     const int BK = 8;
     const int TM = 8;
     const int TN = 8;
@@ -105,8 +105,7 @@ void run_kernel(int kernel_number, int M, int N, int K, const float *A, const fl
             break;
         case 4:
             run_kernel4(M, N, K, A, B, C);
-            break;
-        case 5:
+            break        case 5:
             run_kernel5(M, N, K, A, B, C);
             break;
         case 6:
