@@ -17,7 +17,7 @@
 #include <vector>
 
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
-__global__ void kernel5(const int M, const int N, const int K, const float *A, const float *B, float *C) {
+__global__ void kernel6(const int M, const int N, const int K, float *A, float *B, float *C) {
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
 
@@ -41,29 +41,33 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
     C += cBlockRow * N * BM + cBlockCol * BN;
 
     // Indices that the thread loads into SMEM
-    const uint aInnerBlockCol = threadIdx.x % BK;
-    const uint aInnerBlockRow = threadIdx.x / BK;
-    const uint strideA = blockDim.x / BK;
+    const uint aInnerBlockCol = threadIdx.x % (BK / 4);
+    const uint aInnerBlockRow = threadIdx.x / (BK / 4);
+    const uint strideA = blockDim.x / (BK / 4);
 
-    const uint bInnerBlockCol = threadIdx.x % BN;
-    const uint bInnerBlockRow = threadIdx.x / BN;
-    const uint strideB = blockDim.x / BN;
+    const uint bInnerBlockCol = threadIdx.x % (BN / 4);
+    const uint bInnerBlockRow = threadIdx.x / (BN / 4);
+    const uint strideB = blockDim.x / (BN / 4);
 
     float threadResults[TM * TN] = {0.0};
     float regM[TM] = {0.0};
     float regN[TN] = {0.0};
 
     for (uint block = 0; block < K; block += BK) {
-        // Populate SMEM Caches
-        #pragma unroll
+// Populate SMEM Caches
+// Transpose A to vectorise things
+#pragma unroll
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            As[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol] =
-                A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol];
+            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol * 4])[0];
+            As[(aInnerBlockCol * 4 + 0) * BM + aInnerBlockRow + loadOffset] = tmp.x;
+            As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow + loadOffset] = tmp.y;
+            As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow + loadOffset] = tmp.z;
+            As[(aInnerBlockCol * 4 + 3) * BM + aInnerBlockRow + loadOffset] = tmp.w;
         }
-        #pragma unroll
+#pragma unroll
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
-            Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol] =
-                B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol];
+            reinterpret_cast<float4 *>(&Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 4])[0] =
+                reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
         }
         __syncthreads();
 
@@ -71,19 +75,19 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
         A += BK;
         B += BK * N;
 
-        // Calculate thread's results to local registers
-        #pragma unroll
+// Calculate thread's results to local registers
+#pragma unroll
         for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
-            // Load block into registers
-            #pragma unroll
-            for (uint i = 0; i < TM; i++) {
-                regM[i] = As[(threadBlockRow * TM + i) * BK + dotIdx];
+// Load block into registers
+#pragma unroll
+            for (uint i = 0; i < TM; ++i) {
+                regM[i] = As[dotIdx * BM + threadBlockRow * TM + i];
             }
-            #pragma unroll
-            for (uint i = 0; i < TN; i++) {
+#pragma unroll
+            for (uint i = 0; i < TN; ++i) {
                 regN[i] = Bs[dotIdx * BN + threadBlockCol * TN + i];
             }
-            #pragma unroll
+#pragma unroll
             for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
                 for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
                     threadResults[resIdxM * TN + resIdxN] +=
@@ -93,10 +97,10 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
         }
         __syncthreads();
     }
-    // Write local registers to GMEM
-    #pragma unroll
+// Write local registers to GMEM
+#pragma unroll
     for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
-        #pragma unroll
+#pragma unroll
         for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
             float4 tmp = reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0];
             tmp.x += threadResults[resIdxM * TN + resIdxN];
@@ -106,6 +110,4 @@ __global__ void kernel5(const int M, const int N, const int K, const float *A, c
             reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0] = tmp;
         }
     }
-    
-
 }
