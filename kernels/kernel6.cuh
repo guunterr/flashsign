@@ -58,8 +58,8 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
 // Transpose A to vectorise things
 #pragma unroll
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol * 4])[0];
-            As[(aInnerBlockCol * 4) * BM + aInnerBlockRow + loadOffset] = tmp.x;
+            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol * 4])[0];
+            As[(aInnerBlockCol * 4 + 0) * BM + aInnerBlockRow + loadOffset] = tmp.x;
             As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow + loadOffset] = tmp.y;
             As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow + loadOffset] = tmp.z;
             As[(aInnerBlockCol * 4 + 3) * BM + aInnerBlockRow + loadOffset] = tmp.w;
