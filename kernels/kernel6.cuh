@@ -53,16 +53,6 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
     float regM[TM] = {0.0};
     float regN[TN] = {0.0};
 
-    if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0) {
-        printf("M, N, K, BM, BN, BK: %d, %d, %d, %d, %d, %d\n", M, N, K, BM, BN, BK);
-        printf("TM, TN: %d, %d\n", TM, TN);
-        printf("blockIdx.x, blockIdx.y, threadIdx.x: %d, %d, %d\n", blockIdx.x, blockIdx.y, threadIdx.x);
-        printf("threadBlockCol, threadBlockRow: %d, %d\n", threadBlockCol, threadBlockRow);
-        printf("aInnerBlockCol, aInnerBlockRow: %d, %d\n", aInnerBlockCol, aInnerBlockRow);
-        printf("bInnerBlockCol, bInnerBlockRow: %d, %d\n", bInnerBlockCol, bInnerBlockRow);
-        printf("strideA, strideB: %d, %d\n", strideA, strideB);
-    }
-
     for (uint block = 0; block < K; block += BK) {
 // Populate SMEM Caches
 // Transpose A to vectorise things
