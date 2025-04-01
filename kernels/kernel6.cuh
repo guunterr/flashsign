@@ -53,26 +53,26 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
     float regM[TM] = {0.0};
     float regN[TN] = {0.0};
 
-    if(blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 4) {
+    if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0) {
         printf("M, N, K, BM, BN, BK: %d, %d, %d, %d, %d, %d\n", M, N, K, BM, BN, BK);
         printf("TM, TN: %d, %d\n", TM, TN);
         printf("blockIdx.x, blockIdx.y, threadIdx.x: %d, %d, %d\n", blockIdx.x, blockIdx.y, threadIdx.x);
         printf("threadBlockCol, threadBlockRow: %d, %d\n", threadBlockCol, threadBlockRow);
         printf("aInnerBlockCol, aInnerBlockRow: %d, %d\n", aInnerBlockCol, aInnerBlockRow);
         printf("bInnerBlockCol, bInnerBlockRow: %d, %d\n", bInnerBlockCol, bInnerBlockRow);
-        printf("strideA, strideB: %d, %d\n", strideA, strideB);       
+        printf("strideA, strideB: %d, %d\n", strideA, strideB);
     }
 
     for (uint block = 0; block < K; block += BK) {
 // Populate SMEM Caches
+// Transpose A to vectorise things
 #pragma unroll
-        // Transpose A to vectorise things
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
             float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * BK + aInnerBlockCol * 4])[0];
-            As[(aInnerBlockCol * 4) * BM + aInnerBlockRow] = tmp.x;
-            As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow] = tmp.y;
-            As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow] = tmp.z;
-            As[(aInnerBlockCol * 4 + 3) * BM + aInnerBlockRow] = tmp.w;
+            As[(aInnerBlockCol * 4) * BM + aInnerBlockRow + loadOffset] = tmp.x;
+            As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow + loadOffset] = tmp.y;
+            As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow + loadOffset] = tmp.z;
+            As[(aInnerBlockCol * 4 + 3) * BM + aInnerBlockRow + loadOffset] = tmp.w;
         }
 #pragma unroll
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
@@ -90,11 +90,11 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
         for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
 // Load block into registers
 #pragma unroll
-            for (uint i = 0; i < TM; i++) {
-                regM[i] = As[threadBlockRow * TM + BM * dotIdx + i];
+            for (uint i = 0; i < TM; ++i) {
+                regM[i] = As[dotIdx * BM + threadBlockRow * TM + i];
             }
 #pragma unroll
-            for (uint i = 0; i < TN; i++) {
+            for (uint i = 0; i < TN; ++i) {
                 regN[i] = Bs[dotIdx * BN + threadBlockCol * TN + i];
             }
 #pragma unroll
