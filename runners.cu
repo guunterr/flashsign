@@ -77,7 +77,6 @@ void run_kernel5(int M, int N, int K, const float *A, const float *B, float *C) 
 }
 
 void run_kernel6(int M, int N, int K, float *A, float *B, float *C) {
-    printf("Kernel 6 is BROKEN\n");
     const int BK = 8;
     const int TM = 8;
     const int TN = 8;
