@@ -178,9 +178,10 @@ void time_kernel(int kernel_number, int N = 1 << 12, int warmup = 2, int runs = 
     }
     average_time /= runs;
     std = sqrt(std / runs - average_time * average_time);
+    relative_error = std / average_time;
     double FLOPS = 2 * pow(N, 3) + pow(N, 2);
-    printf("Kernel %d took a total of %.4f+-%.4f ms , doing %.2e FLOPS, giving %.2f TFLOPS/s\n",
-           kernel_number, average_time, std, FLOPS, FLOPS / (average_time * 1e9));
+    printf("Kernel %d took a total of %.4f+-%.4f ms , doing %.2e FLOPS, giving %.2f +- %.2f TFLOPS/s\n",
+           kernel_number, average_time, std, FLOPS, FLOPS / (average_time * 1e9), (FLOPS / (average_time * 1e9)) * relative_error);
     free(a);
     free(b);
     free(c);
