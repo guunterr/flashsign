@@ -21,6 +21,7 @@
 typedef __nv_bfloat16 bf16;
 
 int main(int argc, char* argv[]) {
+    clock_t start = clock();
     cublasCreate(&handle);
     get_device_properties();
     int kernel_number = atoi(argv[2]);
@@ -37,6 +38,9 @@ int main(int argc, char* argv[]) {
         test_kernel(kernel_number, false, warmup);
     }
     cublasDestroy(handle);
+    clock_t end = clock();
+    double duration = (end-start) / CLOCKS_PER_SEC;
+    printf("Run wallclock time: %.2f s\n", duration);
 
     return 0;
 }
