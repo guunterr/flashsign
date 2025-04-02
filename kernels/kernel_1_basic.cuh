@@ -95,8 +95,8 @@ __global__ void kernel1(const int M, const int N, const int K, bf16 *A, bf16 *B,
             #pragma unroll
             for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
                 for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
-                    threadResults[resIdxM * TN + resIdxN] +=
-                        __float2bfloat16(__bfloat162float(regM[resIdxM]) * __bfloat162float(regN[resIdxN]));
+                    threadResults[resIdxM * TN + resIdxN] =
+                        __float2bfloat16(__bfloat162float(threadResults[resIdxM*TN + resIdxN]) +__bfloat162float(regM[resIdxM]) * __bfloat162float(regN[resIdxN]));
                 }
             }
         }
