@@ -6,7 +6,7 @@
 
 cublasHandle_t handle;
 void run_kernel1(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
-    const int BK = 8;
+    const int BK = 16;
     const int TM = 8;
     const int TN = 8;
     const int BM = 64;
