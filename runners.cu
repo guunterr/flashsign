@@ -172,7 +172,8 @@ void time_kernel(int kernel_number, int N = 1 << 12, int warmup = 2, int runs = 
     float std = 0;
     printf("Kernel %d took the following times:\n", kernel_number);
     for (size_t i = 0; i < runs; i++) {
-        printf("%.4f ms\n", times[i]);
+        printf("%.4f ms, ", times[i]);
+        if(i % 10 == 9) printf("\n");
         average_time += times[i];
         std += times[i] * times[i];
     }
