@@ -72,7 +72,7 @@ __global__ void kernel6(const int M, const int N, const int K, bf16 *A, bf16 *B,
         }
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
             reinterpret_cast<float4 *>(
-                &Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 4])[0] = reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
+                &Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 8])[0] = reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 8])[0];
         }
         __syncthreads();
 
