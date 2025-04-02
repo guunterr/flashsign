@@ -16,19 +16,43 @@
 #include <random>
 #include <vector>
 
+namespace kernel2_warptile {
+
 typedef __nv_bfloat16 bf16;
 
-template <const int BM, const int BN, const int BK, const int TM, const int TN>
-__global__ void kernel1(const int M, const int N, const int K, bf16 *A, bf16 *B,
+const int WARPSIZE = 32;
+
+template <const int BM, const int BN, const int BK, const int strideA, const int strideB>
+__device__ void loadFromGMEM(const bf16 *A, int lda_a, bf16 *As, const bf16 *B, int lda_b, bf16 *Bs, int aInnerBlockRow, int aInnerBlockCol, int bInnerBlockRow, int bInnerBlockCol) {
+    #pragma unroll
+    for(uint loadOffset = 0; loadOffset < BM; loadOffset += strideA){
+        bf16 tmp[8];
+        float4 x = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * lda_a + aInnerBlockCol * 8])[0];
+        memcpy(&tmp[0], &x, sizeof(bf16) * 8);
+        //As transposed for better coalescing
+        #pragma unroll
+        for (uint i = 0; i < 8; i++)
+        {
+            As[(aInnerBlockCol * 8 + i) * BM + aInnerBlockRow + loadOffset] = tmp[i];
+        }
+    }
+    #pragma unroll
+    for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
+        reinterpret_cast<float4 *>(&Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 8])[0] 
+            = reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * lda_b + bInnerBlockCol * 8])[0];
+    }
+}
+
+template<const int BM, const int BN, const int BK, const int TM, const int TN>
+__device__ void matmulFromSMEM(bf16 *regM, bf16* regN, bf16* threadResults, const bf16 *As, const bf16 *Bs, bf16 *C) {
+    return;
+}
+
+template <const int BM, const int BN, const int BK, const int TM, const int TN, const int NUM_THREADS>
+__global__ void kernel2(const int M, const int N, const int K, bf16 *A, bf16 *B,
                         bf16 *C) {
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
-
-    const uint totalResultsPerBlock = BM * BN;
-    const uint totalResultsPerThread = TM * TN;
-
-    // Res/Block / Res/Thread = Thread/Block which should be blockDim.x
-    assert(totalResultsPerBlock / totalResultsPerThread == blockDim.x);
 
     // We use BN/TN threads per column of the block of C we compute
     // Columns are contiguous in memory
@@ -46,34 +70,18 @@ __global__ void kernel1(const int M, const int N, const int K, bf16 *A, bf16 *B,
     // Indices that the thread loads into SMEM
     const uint aInnerBlockCol = threadIdx.x % (BK / 8);
     const uint aInnerBlockRow = threadIdx.x / (BK / 8);
-    const uint strideA = blockDim.x / (BK / 8);
+    constexpr uint strideA = NUM_THREADS / (BK / 8);
 
     const uint bInnerBlockCol = threadIdx.x % (BN / 8);
     const uint bInnerBlockRow = threadIdx.x / (BN / 8);
-    const uint strideB = blockDim.x / (BN / 8);
+    constexpr uint strideB = NUM_THREADS / (BN / 8);
 
     bf16 threadResults[TM * TN] = {0.0};
     bf16 regM[TM] = {0.0};
     bf16 regN[TN] = {0.0};
     for (uint block = 0; block < K; block += BK) {
         // Populate SMEM Caches
-        // Transpose A to vectorise things
-        for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            bf16 tmp[8];
-            float4 x = reinterpret_cast<float4 *>(
-                &A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol * 8])[0];
-            memcpy(&tmp[0], &x, sizeof(bf16) * 8);
-
-            #pragma unroll
-            for (uint i = 0; i < 8; i++)
-            {
-                As[(aInnerBlockCol * 8 + i) * BM + aInnerBlockRow + loadOffset] = tmp[i];
-            }
-        }
-        for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
-            reinterpret_cast<float4 *>(
-                &Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 8])[0] = reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 8])[0];
-        }
+        loadFromGMEM<BM, BN, BK, strideA, strideB>(A, K, As, B, N, Bs, aInnerBlockRow, aInnerBlockCol, bInnerBlockRow, bInnerBlockCol);
         __syncthreads();
 
         // Advance blocktile
@@ -96,7 +104,7 @@ __global__ void kernel1(const int M, const int N, const int K, bf16 *A, bf16 *B,
             for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
                 for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
                     threadResults[resIdxM * TN + resIdxN] +=
-                        __float2bfloat16(__bfloat162float(regM[resIdxM]) * __bfloat162float(regN[resIdxN]));
+                        regM[resIdxM] * regN[resIdxN];
                 }
             }
         }
@@ -118,4 +126,5 @@ __global__ void kernel1(const int M, const int N, const int K, bf16 *A, bf16 *B,
             reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0] = reinterpret_cast<float4 *>(&tmp)[0];
         }
     }
+}
 }

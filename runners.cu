@@ -5,7 +5,7 @@
 #include <cublas_v2.h>
 
 cublasHandle_t handle;
-void run_kernel_basic(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
+void run_kernel1(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
     const int BK = 8;
     const int TM = 8;
     const int TN = 8;
@@ -13,7 +13,7 @@ void run_kernel_basic(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
     const int BN = 64;
     dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
     dim3 blockDim((BM * BN) / (TM * TN));
-    kernel6<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    kernel1<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         printf("CUDA error in run_kernel_basic: %s\n", cudaGetErrorString(err));
@@ -39,7 +39,7 @@ void run_kernel(int kernel_number, int M, int N, int K, bf16 *A, bf16 *B, bf16 *
             run_kernel_cublas(M, N, K, A, B, C);
             break;
         case 1:
-            run_kernel_basic(M, N, K, A, B, C);
+            run_kernel1(M, N, K, A, B, C);
             break;
         default:
             printf("Invalid kernel number\n");
