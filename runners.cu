@@ -172,15 +172,15 @@ void time_kernel(int kernel_number, int N = 1 << 12, int warmup = 2, int runs = 
     float std = 0;
     printf("Kernel %d took the following times:\n", kernel_number);
     for (size_t i = 0; i < runs; i++) {
-        printf("%.2f ms\n", times[i]);
+        printf("%.4f ms\n", times[i]);
         average_time += times[i];
         std += times[i] * times[i];
     }
     average_time /= runs;
     std = sqrt(std / runs - average_time * average_time);
     double FLOPS = 2 * pow(N, 3) + pow(N, 2);
-    printf("Kernel %d took a total of %.2f+-%.2f ms , doing %.2e FLOPS, giving %.2f GFLOPS/s\n",
-           kernel_number, average_time, std, FLOPS, FLOPS / (average_time * 1e6));
+    printf("Kernel %d took a total of %.4f+-%.4f ms , doing %.2e FLOPS, giving %.2f TFLOPS/s\n",
+           kernel_number, average_time, std, FLOPS, FLOPS / (average_time * 1e9));
     free(a);
     free(b);
     free(c);
