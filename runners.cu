@@ -4,6 +4,7 @@
 #include "utils.cu"
 #include <cublas_v2.h>
 
+cublasHandle_t handle;
 void run_kernel_basic(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
     const int BK = 8;
     const int TM = 8;
@@ -21,12 +22,10 @@ void run_kernel_basic(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
 }
 
 void run_kernel_cublas(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C){
-    cublasHandle_t handle;
-    cublasCreate(&handle);
+
     const float alpha = 1.0f;
     const float beta = 1.0f;
     cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, CUDA_R_16BF, N, A, CUDA_R_16BF, K, &beta, C, CUDA_R_16BF, N, CUDA_R_32F, CUBLAS_GEMM_DEFAULT);
-    cublasDestroy(handle);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         printf("CUDA error in run_kernel_cublas: %s\n", cudaGetErrorString(err));

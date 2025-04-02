@@ -21,6 +21,7 @@
 typedef __nv_bfloat16 bf16;
 
 int main(int argc, char* argv[]) {
+    cublasCreate(&handle);
     get_device_properties();
     int kernel_number = atoi(argv[2]);
     int warmup = atoi(argv[3]);
@@ -35,6 +36,7 @@ int main(int argc, char* argv[]) {
         printf("Testing kernel %d\n", kernel_number);
         test_kernel(kernel_number, false, warmup);
     }
+    cublasDestroy(handle);
 
     return 0;
 }
