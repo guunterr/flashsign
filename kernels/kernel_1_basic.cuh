@@ -16,8 +16,11 @@
 #include <random>
 #include <vector>
 
+typedef __nv_bfloat16 bf16;
+
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
-__global__ void kernel6(const int M, const int N, const int K, float *A, float *B, float *C) {
+__global__ void kernel6(const int M, const int N, const int K, bf16 *A, bf16 *B,
+                        bf16 *C) {
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
 
@@ -32,8 +35,8 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
     const uint threadBlockCol = threadIdx.x % (BN / TN);
     const uint threadBlockRow = threadIdx.x / (BN / TN);
 
-    __shared__ float As[BM * BK];
-    __shared__ float Bs[BK * BN];
+    __shared__ bf16 As[BM * BK];
+    __shared__ bf16 Bs[BK * BN];
 
     // Move pointers to the start of the row of A, column of B and block of C
     A += cBlockRow * BM * K;
@@ -41,33 +44,35 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
     C += cBlockRow * N * BM + cBlockCol * BN;
 
     // Indices that the thread loads into SMEM
-    const uint aInnerBlockCol = threadIdx.x % (BK / 4);
-    const uint aInnerBlockRow = threadIdx.x / (BK / 4);
-    const uint strideA = blockDim.x / (BK / 4);
+    const uint aInnerBlockCol = threadIdx.x % (BK / 8);
+    const uint aInnerBlockRow = threadIdx.x / (BK / 8);
+    const uint strideA = blockDim.x / (BK / 8);
 
-    const uint bInnerBlockCol = threadIdx.x % (BN / 4);
-    const uint bInnerBlockRow = threadIdx.x / (BN / 4);
-    const uint strideB = blockDim.x / (BN / 4);
+    const uint bInnerBlockCol = threadIdx.x % (BN / 8);
+    const uint bInnerBlockRow = threadIdx.x / (BN / 8);
+    const uint strideB = blockDim.x / (BN / 8);
 
-    float threadResults[TM * TN] = {0.0};
-    float regM[TM] = {0.0};
-    float regN[TN] = {0.0};
-
+    bf16 threadResults[TM * TN] = {0.0};
+    bf16 regM[TM] = {0.0};
+    bf16 regN[TN] = {0.0};
     for (uint block = 0; block < K; block += BK) {
-// Populate SMEM Caches
-// Transpose A to vectorise things
-#pragma unroll
+        // Populate SMEM Caches
+        // Transpose A to vectorise things
         for (uint loadOffset = 0; loadOffset < BM; loadOffset += strideA) {
-            float4 tmp = reinterpret_cast<float4 *>(&A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol * 4])[0];
-            As[(aInnerBlockCol * 4 + 0) * BM + aInnerBlockRow + loadOffset] = tmp.x;
-            As[(aInnerBlockCol * 4 + 1) * BM + aInnerBlockRow + loadOffset] = tmp.y;
-            As[(aInnerBlockCol * 4 + 2) * BM + aInnerBlockRow + loadOffset] = tmp.z;
-            As[(aInnerBlockCol * 4 + 3) * BM + aInnerBlockRow + loadOffset] = tmp.w;
+            bf16 tmp[8];
+            float4 x = reinterpret_cast<float4 *>(
+                &A[(aInnerBlockRow + loadOffset) * K + aInnerBlockCol * 8])[0];
+            memcpy(&tmp[0], &x, sizeof(bf16) * 8);
+
+            #pragma unroll
+            for (uint i = 0; i < 8; i++)
+            {
+                As[(aInnerBlockCol * 8 + i) * BM + aInnerBlockRow + loadOffset] = tmp[i];
+            }
         }
-#pragma unroll
         for (uint loadOffset = 0; loadOffset < BK; loadOffset += strideB) {
-            reinterpret_cast<float4 *>(&Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 4])[0] =
-                reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
+            reinterpret_cast<float4 *>(
+                &Bs[(bInnerBlockRow + loadOffset) * BN + bInnerBlockCol * 4])[0] = reinterpret_cast<float4 *>(&B[(bInnerBlockRow + loadOffset) * N + bInnerBlockCol * 4])[0];
         }
         __syncthreads();
 
@@ -75,19 +80,19 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
         A += BK;
         B += BK * N;
 
-// Calculate thread's results to local registers
-#pragma unroll
+        // Calculate thread's results to local registers
+        #pragma unroll
         for (uint dotIdx = 0; dotIdx < BK; ++dotIdx) {
-// Load block into registers
-#pragma unroll
+            // Load block into registers
+            #pragma unroll
             for (uint i = 0; i < TM; ++i) {
                 regM[i] = As[dotIdx * BM + threadBlockRow * TM + i];
             }
-#pragma unroll
+            #pragma unroll
             for (uint i = 0; i < TN; ++i) {
                 regN[i] = Bs[dotIdx * BN + threadBlockCol * TN + i];
             }
-#pragma unroll
+            #pragma unroll
             for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
                 for (uint resIdxN = 0; resIdxN < TN; ++resIdxN) {
                     threadResults[resIdxM * TN + resIdxN] +=
@@ -97,17 +102,20 @@ __global__ void kernel6(const int M, const int N, const int K, float *A, float *
         }
         __syncthreads();
     }
-// Write local registers to GMEM
-#pragma unroll
+    // Write local registers to GMEM
+    #pragma unroll
     for (uint resIdxM = 0; resIdxM < TM; ++resIdxM) {
-#pragma unroll
-        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
-            float4 tmp = reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0];
-            tmp.x += threadResults[resIdxM * TN + resIdxN];
-            tmp.y += threadResults[resIdxM * TN + resIdxN + 1];
-            tmp.z += threadResults[resIdxM * TN + resIdxN + 2];
-            tmp.w += threadResults[resIdxM * TN + resIdxN + 3];
-            reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0] = tmp;
+        #pragma unroll
+        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 8) {
+            bf16 tmp[8];
+            float4 x = reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0];
+            memcpy(&tmp[0], &x, sizeof(bf16) * 8);
+            #pragma unroll
+            for (uint i = 0; i < 8; i++)
+            {
+                tmp[i] += threadResults[resIdxM * TN + resIdxN + i];
+            }
+            reinterpret_cast<float4 *>(&C[(threadBlockRow * TM + resIdxM) * N + threadBlockCol * TN + resIdxN])[0] = reinterpret_cast<float4 *>(&tmp)[0];
         }
     }
 }

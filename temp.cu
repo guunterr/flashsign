@@ -18,6 +18,8 @@
 #include "runners.cu"
 #include "utils.cu"
 
+typedef __nv_bfloat16 bf16;
+
 int main(int argc, char* argv[]) {
     get_device_properties();
     int kernel_number = atoi(argv[2]);

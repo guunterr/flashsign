@@ -2,27 +2,38 @@
 
 std::default_random_engine generator = std::default_random_engine(time(0));
 
-void randomise_matrix(float *matrix, int N) {
+
+typedef __nv_bfloat16 bf16;
+
+bf16 f2bf16(float x){
+    return __float2bfloat16(x);
+}
+
+float bf162f(bf16 x){
+    return __bfloat162float(x);
+}
+
+void randomise_matrix(bf16 *matrix, int N) {
     std::normal_distribution<float> distribution(0.0, 1.0);
     for (int i = 0; i < N; i++) {
-        matrix[i] = distribution(generator);
+        matrix[i] = f2bf16(distribution(generator));
     }
 }
 
-float *make_random_matrix(int M, int N) {
-    float *matrix = (float *)malloc(M * N * sizeof(float));
+bf16 *make_random_matrix(int M, int N) {
+    bf16 *matrix = (bf16 *)malloc(M * N * sizeof(bf16));
     randomise_matrix(matrix, M * N);
     return matrix;
 }
 
-bool verify_matrix(float *matRef, float *matOut, int N) {
+bool verify_matrix(bf16 *matRef, bf16 *matOut, int N) {
     double diff = 0.0;
     int i;
     for (i = 0; i < N; i++) {
-        diff = std::fabs(matRef[i] - matOut[i]);
+        diff = std::fabs(bf162f(matRef[i] - matOut[i]));
         if (diff > 0.1) {
             printf("Divergence! Should %5.2f, Is %5.2f (Diff %5.2f) at %d\n",
-                   matRef[i], matOut[i], diff, i);
+                   bf162f(matRef[i]), bf162f(matOut[i]), diff, i);
             return false;
         }
     }
@@ -32,10 +43,10 @@ int ceil_div(int a, int b) {
     return (a / b) + (a % b != 0);
 }
 
-void print_matrix(float *matrix, int M, int N) {
+void print_matrix(bf16 *matrix, int M, int N) {
     for (size_t i = 0; i < M; i++) {
         for (size_t j = 0; j < N; j++) {
-            printf("%6.2f ", (matrix[i * N + j]));
+            printf("%6.2f ", bf162f(matrix[i * N + j]));
         }
         printf("\n");
     }
