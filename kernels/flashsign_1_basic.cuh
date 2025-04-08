@@ -146,7 +146,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
 }
 template<const int X, const int D>
 void run_flashsign1(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
-    constexpr uint BY = 128;
+    constexpr uint BY = 32;
     constexpr uint BX = 8;
     dim3 gridDim(ceil_div(Y, BY));
     dim3 blockDim(BY);
