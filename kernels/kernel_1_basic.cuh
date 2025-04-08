@@ -24,12 +24,6 @@ __global__ void kernel1(const int M, const int N, const int K, bf16 *A, bf16 *B,
     const uint cBlockRow = blockIdx.y;
     const uint cBlockCol = blockIdx.x;
 
-    const uint totalResultsPerBlock = BM * BN;
-    const uint totalResultsPerThread = TM * TN;
-
-    // Res/Block / Res/Thread = Thread/Block which should be blockDim.x
-    assert(totalResultsPerBlock / totalResultsPerThread == blockDim.x);
-
     // We use BN/TN threads per column of the block of C we compute
     // Columns are contiguous in memory
     const uint threadBlockCol = threadIdx.x % (BN / TN);

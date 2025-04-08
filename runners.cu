@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kernels/kernel_1_basic.cuh"
+#include "kernels/kernel_2_warptile.cuh"
 #include "utils.cu"
 #include <cublas_v2.h>
 
@@ -16,7 +17,28 @@ void run_kernel1(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
     kernel1<BM, BN, BK, TM, TN><<<gridDim, blockDim>>>(M, N, K, A, B, C);
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
-        printf("CUDA error in run_kernel_basic: %s\n", cudaGetErrorString(err));
+        printf("CUDA error in run_kernel1: %s\n", cudaGetErrorString(err));
+    }
+    return;
+}
+
+void run_kernel2(int M, int N, int K, bf16 *A, bf16 *B, bf16 *C) {
+    const int BK = 16;
+    const int WM = 32;
+    const int WN = 64;
+    const int TM = 8;
+    const int TN = 8;
+    const int BM = 128;
+    const int BN = 128;
+    const int WSUBM = 32;
+    const int WSUBN = 64;
+    constexpr int NUM_THREADS = (BM * BN) / (TM * TN);
+    dim3 gridDim(ceil_div(N, BN), ceil_div(M, BM));
+    dim3 blockDim((BM * BN) / (TM * TN));
+    kernel2<BM, BN, BK, WM, WN, WSUBM, WSUBN, TM, TN, NUM_THREADS><<<gridDim, blockDim>>>(M, N, K, A, B, C);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error in run_kernel2: %s\n", cudaGetErrorString(err));
     }
     return;
 }
@@ -40,6 +62,9 @@ void run_kernel(int kernel_number, int M, int N, int K, bf16 *A, bf16 *B, bf16 *
             break;
         case 1:
             run_kernel1(M, N, K, A, B, C);
+            break;
+        case 2:
+            run_kernel2(M, N, K, A, B, C);
             break;
         default:
             printf("Invalid kernel number\n");

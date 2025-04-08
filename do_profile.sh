@@ -2,7 +2,7 @@
 nvidia-smi
 mkdir out
 rm out/*
-datetime=$(date +%m-%d_%H:%M)
+datetime=$2
 nvcc -arch=sm_90 -lcublas -g -DNDEBUG --generate-line-info -O3 --ptxas-options=-v -o out/temp temp.cu > out/compiler_log_$datetime.txt
 ./out/temp t $1 256 1 > out/test_$datetime.txt
 ./out/temp r $1 2 20 > out/benchmark_$datetime.txt
