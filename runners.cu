@@ -22,7 +22,7 @@ template<const int X, const int D>
 void time_flashsign(int kernel_number, int Y, int warmup = 2, int runs = 5) {
     int data_len = warmup + runs;
     fp16 *Q, *K, *V, *O, *d_Q, *d_K, *d_V, *d_O;
-    printf("Filling out data: Q[%d x %d], K[%d x %d], V[%d x %d], Y[%d x %d]\n", Y, D, X, D, X, D, X, D);
+    printf("Filling out data: Q[%d x %d], K[%d x %d], V[%d x %d], Y[%d x %d]\n", Y, D, X, D, X, D, Y, D);
     Q = (fp16*)malloc(data_len * Y * D * sizeof(fp16));
     K = (fp16*)malloc(data_len * X * D * sizeof(fp16));
     V = (fp16*)malloc(data_len * X * D * sizeof(fp16));
@@ -51,7 +51,8 @@ void time_flashsign(int kernel_number, int Y, int warmup = 2, int runs = 5) {
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        run_flashsign<X,D>(kernel_number, Y, d_Q + i * Y * D, d_K + i * X * D, d_V  + i * X * D, d_O + i * Y * D);
+        // run_flashsign<X,D>(kernel_number, Y, d_Q + i * Y * D, d_K + i * X * D, d_V  + i * X * D, d_O + i * Y * D);
+        run_flashsign<X,D>(kernel_number, Y, d_Q, d_K, d_V, d_O);
         cudaEventRecord(stop);
         cudaEventSynchronize(start);
         cudaEventSynchronize(stop);
