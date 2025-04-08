@@ -44,6 +44,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
     const uint tix = threadIdx.x;
 
     //thread works with block to load Q
+    #pragma unroll
     for (uint loadQ = 0; loadQ < BY * D; loadQ += 8 * NUM_THREADS)
     {
         float4 tmp = reinterpret_cast<float4 *>(&Q[loadQ + 8 * tix])[0];
