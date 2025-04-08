@@ -47,7 +47,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
     for (uint loadQ = 0; loadQ < BY * D; loadQ += 8 * NUM_THREADS)
     {
         float4 tmp = reinterpret_cast<float4 *>(&Q[loadQ + 8 * tix])[0];
-        reinterpret_cast<float4 *>(&Qs[loadQ + tix])[0] = tmp;
+        reinterpret_cast<float4 *>(&Qs[loadQ + 8 * tix])[0] = tmp;
     }
     __syncthreads();
     for (uint i = 0; i < D; i++)
@@ -116,8 +116,9 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
         //Shuffle V forwards BX Rows
         V += BX * D;
         //thread does DOT(S,V) = Y -> 1xD
+        #pragma unroll
         for (uint dotIdx = 0; dotIdx < D; dotIdx++)
-        {
+        {   
             for (uint V_CHUNK = 0; V_CHUNK < BX/8; V_CHUNK++)
             {
                 fp16 tmp_V[8];
@@ -125,7 +126,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
                 memcpy(&tmp_V[0], &x, sizeof(fp16)*8);
                 for (uint resIdx = 0; resIdx < 8; resIdx++)
                 {
-                    regO[dotIdx] += regS[V_CHUNK * 8 + resIdx] + tmp_V[resIdx];
+                    regO[dotIdx] += regS[V_CHUNK * 8 + resIdx] * tmp_V[resIdx];
                 }
             }
             
