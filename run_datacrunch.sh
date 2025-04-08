@@ -9,7 +9,7 @@ ssh root@$1 "\
     eval \$(ssh-agent -s); \
     ssh-add ~/flashsign_key; \ 
     git reset --hard origin/master; \
-    git pull origin sm_90; \
+    git pull origin master; \
     chmod +x do_profile.sh; \
     ./do_profile.sh $2 $datetime;"
 
