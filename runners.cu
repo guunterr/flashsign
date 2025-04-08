@@ -69,7 +69,7 @@ void time_flashsign(int kernel_number, int Y, int warmup = 2, int runs = 5) {
     average_time /= runs;
     std = sqrt(std / runs - average_time * average_time);
     float relative_error = std / average_time;
-    printf("Kernel %d took a total of %.4f+-%.4f ms", kernel_number, average_time, std);
+    printf("\nKernel %d took a total of %.4f+-%.4f ms\n", kernel_number, average_time, std);
     free(Q);
     free(K);
     free(V);
