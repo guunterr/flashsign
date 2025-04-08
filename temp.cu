@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
         printf("Invalid arguments\n");
     }
     if (argv[1][0] == 'r') {
-        printf("Running kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
+        printf("Running flashsign_kernel %d for %d warmup and %d runs\n", kernel_number, warmup, runs);
         time_flashsign<256, 128>(kernel_number, 512, warmup, runs);
     }
     clock_t end = clock();
