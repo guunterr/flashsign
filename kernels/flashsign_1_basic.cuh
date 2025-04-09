@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <cudaTypedefs.h>
 #include <cuda_fp16.h>
+#include <cuda_fp16.hpp>
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
