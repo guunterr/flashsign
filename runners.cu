@@ -2,6 +2,7 @@
 
 #include "kernels/flashsign_0_unfused.cuh"
 #include "kernels/flashsign_1_basic.cuh"
+#include "kernels/flashsign_2_half2.cuh"
 #include "utils.cu"
 #include <cublas_v2.h>
 
@@ -9,6 +10,7 @@ template<const int X, const int D>
 void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
     using flashsign_1_basic::run_flashsign1;
     using flashsign_0_unfused::run_unfused_flashsign;
+    using flashsign_2_half2::run_flashsign2;
     switch(kernel_number) {
         case 0:
             run_unfused_flashsign(Q, K, V, O, Y, X, D);
@@ -16,6 +18,8 @@ void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O)
         case 1:
             run_flashsign1<X,D>(Y, Q, K, V, O);
             break;
+        case 2:
+            run_flashsign2<X,D>(Y, Q, K, V, O);
     }
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {

@@ -27,8 +27,14 @@ int ceil_div(int a, int b) {
 }
 
 
+//64 registers for Q
+//64 registers for O
+//4 registers for S
+//1 register for l
+//4 registers for temporary work
+
 template<const int X, const int BX, const int BY, const int D>
-__global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
+__global__ void __maxnreg__(140) kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
     fp16 __shared__ Qs[BY * D];
     fp16 __shared__ KVs[D * BX];
 
@@ -151,7 +157,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
 }
 template<const int X, const int D>
 void run_flashsign1(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
-    constexpr uint BY = 128;
+    constexpr uint BY = 32;
     constexpr uint BX = 8;
     dim3 gridDim(ceil_div(Y, BY));
     dim3 blockDim(BY);
