@@ -20,7 +20,7 @@ void randomise_matrix(fp16 *matrix, int N) {
     }
 }
 
-void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.1){
+void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.05){
     fp16 diff = 0;
     for (int i = 0; i < M * N; i++)
     {
@@ -28,7 +28,6 @@ void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.1){
         if (diff > epsilon)
         {
             printf("Matrices disagree at (%d, %d) by %.3f, with values %.3f, %.3f\n", i/N, i%N, __half2float(diff), __half2float(A[i]), __half2float(B[i]));
-            return;
         }
     }
     printf("Matrices agree to within %.2f", __half2float(epsilon));
