@@ -92,7 +92,7 @@ void run_unfused_flashsign(const fp16* Q, const fp16* K, const fp16* V, fp16* ou
                 S, X,
                 V, D,
                 &beta,
-                output, D);
+                output, Y);
 
     // Clean up
     cudaFree(S);
