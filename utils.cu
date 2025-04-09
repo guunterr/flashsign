@@ -27,7 +27,7 @@ void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.1){
         diff = __habs(A[i] - B[i]);
         if (diff > epsilon)
         {
-            printf("Matrices disagree at (%d, %d) by %.3f", i/N, i%N, __half2float(diff));
+            printf("Matrices disagree at (%d, %d) by %.3f, with values %.3f, %.3f\n", i/N, i%N, __half2float(diff), __half2float(A[i]), __half2float(B[i]));
             return;
         }
     }
