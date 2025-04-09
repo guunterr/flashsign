@@ -95,7 +95,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
         //thread accumulates normalisation value in registers
         for (uint i = 0; i < BX; i++)
         {
-            l += regS[i];
+            l += regS[i] * regS[i];
         }
         __syncthreads();
         //threads load V (over K)
