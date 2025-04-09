@@ -48,15 +48,17 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
     #pragma unroll
     for (uint loadQ = 0; loadQ < BY * D; loadQ += 8 * NUM_THREADS)
     {
+        // Idiom for LDG_128
         float4 tmp = reinterpret_cast<float4 *>(&Q[loadQ + 8 * tix])[0];
         reinterpret_cast<float4 *>(&Qs[loadQ + 8 * tix])[0] = tmp;
     }
     __syncthreads();
+    // Get our Q values from SMEM
     for (uint i = 0; i < D; i++)
     {
         regQ[i] = Qs[tix * D + i];
     }
-    //loop over X
+    // Loop over X
     for (uint KVBlock = 0; KVBlock < X; KVBlock += BX)
     {
         //threads load part of K = BX * D
@@ -149,7 +151,7 @@ __global__ void kernel(fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
 }
 template<const int X, const int D>
 void run_flashsign1(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
-    constexpr uint BY = 32;
+    constexpr uint BY = 128;
     constexpr uint BX = 8;
     dim3 gridDim(ceil_div(Y, BY));
     dim3 blockDim(BY);
