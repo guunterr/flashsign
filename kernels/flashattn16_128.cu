@@ -1,5 +1,9 @@
 
+#include <torch/types.h>
+#include <torch/extension.h>
+#include <ATen/ATen.h>
 #include <cooperative_groups.h>
+#include <c10/cuda/CUDAException.h>
 #include <cooperative_groups/memcpy_async.h>
 #include <cuda.h>
 #include <cuda_fp16.h>
@@ -229,90 +233,90 @@ int main(){
     return 0;
 }
 
-// // The LoadFlash code.
-// // Loads a tensor A to all SMEMs.
-// std::vector<torch::Tensor> flashAttention(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
-//     CHECK_INPUT(Q);
-//     CHECK_INPUT(K);
-//     CHECK_INPUT(V);
-//     Timer myTimer = Timer("Load Time");
-//     int xbar = K.size(0);
-//     int qbar = Q.size(0);
-//     int dataSize = 8 * SX * DIM;
+// The LoadFlash code.
+// Loads a tensor A to all SMEMs.
+std::vector<torch::Tensor> flashAttention(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
+    CHECK_INPUT(Q);
+    CHECK_INPUT(K);
+    CHECK_INPUT(V);
+    Timer myTimer = Timer("Load Time");
+    int xbar = K.size(0);
+    int qbar = Q.size(0);
+    int dataSize = 8 * SX * DIM;
 
-//     // Derive the block sizes.
-//     int N_blocks;
-//     cudaDeviceGetAttribute(&N_blocks, cudaDevAttrMultiProcessorCount, 0);
-//     // if (NWARPS < 7) N_blocks *= 2;
-//     // How many blocks do we need?
-//     uint Nqbar = (qbar - 1) / (NWARPS * WARP_SIZE) + 1;
-//     uint Nxbar = N_blocks * (Nqbar / N_blocks + 1) / Nqbar;
-//     // uint Nqbar = (qbar-1)/(NWARPS*WARP_SIZE)+1;
-//     // uint Nxbar = 1;
-//     dim3 blocks(Nqbar, Nxbar);
-//     // Create matrices according to the number of splits.
-//     auto O = torch::zeros({Nxbar * qbar, 2 * DIM}, Q.options());
-//     auto mzg = torch::zeros({Nxbar * qbar, 2}, Q.options());
-//     // Set up the pointers.
-//     __half2* Qp = (__half2*)Q.data_ptr<at::Half>();
-//     __half2* Kp = (__half2*)K.data_ptr<at::Half>();
-//     __half2* Vp = (__half2*)V.data_ptr<at::Half>();
-//     __half2* Op = (__half2*)O.data_ptr<at::Half>();
-//     __half2* mzgp = (__half2*)mzg.data_ptr<at::Half>();
+    // Derive the block sizes.
+    int N_blocks;
+    cudaDeviceGetAttribute(&N_blocks, cudaDevAttrMultiProcessorCount, 0);
+    // if (NWARPS < 7) N_blocks *= 2;
+    // How many blocks do we need?
+    uint Nqbar = (qbar - 1) / (NWARPS * WARP_SIZE) + 1;
+    uint Nxbar = N_blocks * (Nqbar / N_blocks + 1) / Nqbar;
+    // uint Nqbar = (qbar-1)/(NWARPS*WARP_SIZE)+1;
+    // uint Nxbar = 1;
+    dim3 blocks(Nqbar, Nxbar);
+    // Create matrices according to the number of splits.
+    auto O = torch::zeros({Nxbar * qbar, 2 * DIM}, Q.options());
+    auto mzg = torch::zeros({Nxbar * qbar, 2}, Q.options());
+    // Set up the pointers.
+    __half2* Qp = (__half2*)Q.data_ptr<at::Half>();
+    __half2* Kp = (__half2*)K.data_ptr<at::Half>();
+    __half2* Vp = (__half2*)V.data_ptr<at::Half>();
+    __half2* Op = (__half2*)O.data_ptr<at::Half>();
+    __half2* mzgp = (__half2*)mzg.data_ptr<at::Half>();
 
-//     // cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
-//     // Lets see if we can assign a value...
-//     //__half myHalf = __half(0.2781);
-//     // printf("mH: %f, Q0: %f, Q1: %f \n", myHalf, Q[0][0], Q[0][1]);
-//     // printf("mH: %x, Q0: %x, Q1: %x \n", myHalf, Q[0][0], Q[0][1]);
-//     // printf("mH: %x, Q0: %x, Q1: %x \n", myHalf, Q.data_ptr<at::Half>(), Q.data_ptr<at::Half>()+1);
-//     // printf("mH: %x, Q0: %x, Q1: %x \n", myHalf, (void*)(Q.data_ptr<at::Half>()), (void*)(Q.data_ptr<at::Half>()+1));
-//     //
-//     // std::cout << typeid(Q.data_ptr<__half2>()[0]).name() << ',' << typeid(myHalf).name() << '\n';
-//     // Op[0] = firstO;
-//     // We have 32 threads per warp, and 12 = nwarps per block.
-//     dim3 warps(WARP_SIZE, NWARPS);
+    // cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+    // Lets see if we can assign a value...
+    //__half myHalf = __half(0.2781);
+    // printf("mH: %f, Q0: %f, Q1: %f \n", myHalf, Q[0][0], Q[0][1]);
+    // printf("mH: %x, Q0: %x, Q1: %x \n", myHalf, Q[0][0], Q[0][1]);
+    // printf("mH: %x, Q0: %x, Q1: %x \n", myHalf, Q.data_ptr<at::Half>(), Q.data_ptr<at::Half>()+1);
+    // printf("mH: %x, Q0: %x, Q1: %x \n", myHalf, (void*)(Q.data_ptr<at::Half>()), (void*)(Q.data_ptr<at::Half>()+1));
+    //
+    // std::cout << typeid(Q.data_ptr<__half2>()[0]).name() << ',' << typeid(myHalf).name() << '\n';
+    // Op[0] = firstO;
+    // We have 32 threads per warp, and 12 = nwarps per block.
+    dim3 warps(WARP_SIZE, NWARPS);
 
-//     // Return critical information:
-//     //  the elapsed time
-//     //  the data size
-//     //  the number of blocks
-//     //  the threads per block
-//     void (*ptr)() = (void (*)())(flashKernel);
-//     cudaFuncAttributes attrib;
-//     cudaError_t err = cudaFuncGetAttributes(&attrib, ptr);
-//     printf("result: %s, numRegs: %d\t, sharedSizeBytes: %d\t, maxDynamicSharedSizeBytes: %d\t, maxThreadsPerBlock: %d\n",
-//            cudaGetErrorString(err), attrib.numRegs, attrib.sharedSizeBytes, attrib.maxDynamicSharedSizeBytes, attrib.maxThreadsPerBlock);
+    // Return critical information:
+    //  the elapsed time
+    //  the data size
+    //  the number of blocks
+    //  the threads per block
+    void (*ptr)() = (void (*)())(flashKernel);
+    cudaFuncAttributes attrib;
+    cudaError_t err = cudaFuncGetAttributes(&attrib, ptr);
+    printf("result: %s, numRegs: %d\t, sharedSizeBytes: %d\t, maxDynamicSharedSizeBytes: %d\t, maxThreadsPerBlock: %d\n",
+           cudaGetErrorString(err), attrib.numRegs, attrib.sharedSizeBytes, attrib.maxDynamicSharedSizeBytes, attrib.maxThreadsPerBlock);
 
-//     int smemSize, totalRegs;
-//     cudaDeviceGetAttribute(&smemSize, cudaDevAttrMaxSharedMemoryPerBlock, 0);
-//     cudaDeviceGetAttribute(&totalRegs, cudaDevAttrMaxRegistersPerBlock, 0);
-//     printf("smemSize: %d\t cudaDevAttrMaxRegistersPerBlock: %d\n", smemSize, totalRegs);
-//     // cudaStream_t stream;
-//     // cudaStreamAttrValue stream_attribute;
-//     // stream_attribute.accessPolicyWindow.base_ptr = reinterpret_cast<void*>(Op);
-//     // stream_attribute.accessPolicyWindow.num_bytes = O.numel()*sizeof(__half);
-//     // stream_attribute.accessPolicyWindow.hitRatio = 1.0;
-//     // stream_attribute.accessPolicyWindow.hitProp = cudaAccessPropertyPersisting;
-//     // stream_attribute.accessPolicyWindow.missProp = cudaAccessPropertyStreaming;
-//     // cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);
+    int smemSize, totalRegs;
+    cudaDeviceGetAttribute(&smemSize, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+    cudaDeviceGetAttribute(&totalRegs, cudaDevAttrMaxRegistersPerBlock, 0);
+    printf("smemSize: %d\t cudaDevAttrMaxRegistersPerBlock: %d\n", smemSize, totalRegs);
+    // cudaStream_t stream;
+    // cudaStreamAttrValue stream_attribute;
+    // stream_attribute.accessPolicyWindow.base_ptr = reinterpret_cast<void*>(Op);
+    // stream_attribute.accessPolicyWindow.num_bytes = O.numel()*sizeof(__half);
+    // stream_attribute.accessPolicyWindow.hitRatio = 1.0;
+    // stream_attribute.accessPolicyWindow.hitProp = cudaAccessPropertyPersisting;
+    // stream_attribute.accessPolicyWindow.missProp = cudaAccessPropertyStreaming;
+    // cudaStreamSetAttribute(stream, cudaStreamAttributeAccessPolicyWindow, &stream_attribute);
 
-//     myTimer.start();
-//     flashKernel<<<blocks, warps>>>(
-//         Qp, Kp, Vp, Op, mzgp, qbar, xbar);
-//     // cudaDeviceSynchronize();
-//     myTimer.stop();
-//     // printf("%d, %d, %d, %d\n", K.numel(), V.numel(), Q.numel(), O.numel());
-//     // cudaError_t error = cudaGetLastError();
-//     // if (error != cudaSuccess){
-//     // fprintf(stderr, "%s\n", cudaGetErrorString(error));
-//     // fflush(stderr);
-//     // }
-//     // CUDACHECK(cudaPeekAtLastError());
+    myTimer.start();
+    flashKernel<<<blocks, warps>>>(
+        Qp, Kp, Vp, Op, mzgp, qbar, xbar);
+    // cudaDeviceSynchronize();
+    myTimer.stop();
+    // printf("%d, %d, %d, %d\n", K.numel(), V.numel(), Q.numel(), O.numel());
+    // cudaError_t error = cudaGetLastError();
+    // if (error != cudaSuccess){
+    // fprintf(stderr, "%s\n", cudaGetErrorString(error));
+    // fflush(stderr);
+    // }
+    // CUDACHECK(cudaPeekAtLastError());
 
-//     auto output = torch::ones({3});
-//     output[0] = myTimer.getElapsedTime();
-//     output[1] = ((2 * K.numel() + 2 * V.numel() + 2 * Q.numel() + 2 * O.numel()));
-//     output[2] = (blocks.x * blocks.y);
-//     return {output, O, mzg};
-// }
+    auto output = torch::ones({3});
+    output[0] = myTimer.getElapsedTime();
+    output[1] = ((2 * K.numel() + 2 * V.numel() + 2 * Q.numel() + 2 * O.numel()));
+    output[2] = (blocks.x * blocks.y);
+    return {output, O, mzg};
+}
