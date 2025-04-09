@@ -64,7 +64,7 @@ void run_unfused_flashsign(const fp16* Q, const fp16* K, const fp16* V, fp16* ou
     cublasHgemm(handle,
                 CUBLAS_OP_T,    // op(A) = Q
                 CUBLAS_OP_N,    // op(B) = K^T
-                D, Y, X,        // m = Y, n = D, k = X
+                Y, X, D,        // m = Y, n = X, k = D
                 &alpha,
                 Q, D,
                 K, D,
