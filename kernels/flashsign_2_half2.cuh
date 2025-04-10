@@ -111,7 +111,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
     }
     fp162 norm_coeff = __half2half2(hrsqrt(l));
     //Thread normalises
-    for (uint yIdx = 0; yIdx < D; yIdx+=8)
+    for (uint yIdx = 0; yIdx < D; yIdx+=4)
     {
         for (uint i = 0; i < 4; i++)
         {
