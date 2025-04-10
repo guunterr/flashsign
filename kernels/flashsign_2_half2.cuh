@@ -88,7 +88,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
         V += BX * D;
         ///Looping over BX
         #pragma unroll
-        for (uint resIdx = 0; resIdx < BX; resIdx+=2)
+        for (uint resIdx = 0; resIdx < BX; resIdx+=1)
         {
             //Initialise accumulator to zero
             s2 = __half2half2(CUDART_ZERO_FP16);
