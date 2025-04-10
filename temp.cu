@@ -25,7 +25,9 @@ int main(int argc, char* argv[]) {
     int kernel_number = atoi(argv[2]);
     int warmup = atoi(argv[3]);
     int runs = atoi(argv[4]);
-    fp16 epsilon = __double2half(atof(argv[5]));
+    if(argc == 6){
+        fp16 epsilon = __double2half(atof(argv[5]));
+    }
     if (kernel_number == 0 || runs == 0) {
         printf("Invalid arguments\n");
     }
