@@ -66,7 +66,7 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     run_flashsign<X,D>(0, Y, d_Q, d_K, d_V, d_O1);
     cudaDeviceSynchronize();
     printf("Running kernel %d\n", kernel_number);
-    // run_flashsign<X,D>(kernel_number, Y, d_Q, d_V, d_K, d_O2);
+    run_flashsign<X,D>(kernel_number, Y, d_Q, d_V, d_K, d_O2);
     cudaDeviceSynchronize();
     printf("Copying data back\n");
     print_device_matrix<<<1,1>>>(d_O1, Y, D);
