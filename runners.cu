@@ -10,7 +10,7 @@ template<const int X, const int D>
 void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
     using flashsign_1_basic::run_flashsign1;
     using flashsign_0_unfused::run_unfused_flashsign;
-    using flashsign_2_half2::run_flashsign2;
+    using flashsign_2_half2::run_flashsign2_half;
     switch(kernel_number) {
         case 0:
             run_unfused_flashsign(Q, K, V, O, Y, X, D);
@@ -104,8 +104,8 @@ void time_flashsign(int kernel_number, int Y, int warmup = 2, int runs = 5) {
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        // run_flashsign<X,D>(kernel_number, Y, d_Q + i * Y * D, d_K + i * X * D, d_V  + i * X * D, d_O + i * Y * D);
-        run_flashsign<X,D>(kernel_number, Y, d_Q, d_K, d_V, d_O);
+        run_flashsign<X,D>(kernel_number, Y, d_Q + i * Y * D, d_K + i * X * D, d_V  + i * X * D, d_O + i * Y * D);
+        // run_flashsign<X,D>(kernel_number, Y, d_Q, d_K, d_V, d_O);
         cudaEventRecord(stop);
         cudaEventSynchronize(start);
         cudaEventSynchronize(stop);

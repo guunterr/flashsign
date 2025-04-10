@@ -123,7 +123,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
 }
 
 template<const int X, const int D>
-void run_flashsign2(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
+void run_flashsign2_half(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
     constexpr int D_HALVED = D / 2;
     constexpr uint BY = 128;
     constexpr uint BX = 8;
@@ -134,5 +134,14 @@ void run_flashsign2(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
     dim3 gridDim(ceil_div(Y, BY));
     dim3 blockDim(BY);
     kernel<X, BX, BY, D_HALVED><<<gridDim, blockDim>>>(new_Q, new_K, new_V, new_O);
+}
+
+template<const int X, const int D_HALVED>
+void run_flashsign2_half2(int Y, fp162 *Q, fp162 *K, fp162 *V, fp162 *O){
+    constexpr uint BY = 128;
+    constexpr uint BX = 8;
+    dim3 gridDim(ceil_div(Y, BY));
+    dim3 blockDim(BY);
+    kernel<X, BX, BY, D_HALVED><<<gridDim, blockDim>>>(Q, K, V, O);
 }
 }

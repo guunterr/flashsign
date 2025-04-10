@@ -60,7 +60,6 @@ void run_unfused_flashsign(const fp16* Q, const fp16* K, const fp16* V, fp16* ou
 
     //Computing S = Q K^T which is YxX
     //We have Q^T and K^T. So transpose Q.
-    printf("HGEMM 1\n");
     cublasHgemm(handle,
                 CUBLAS_OP_T,    // op(A) = Q
                 CUBLAS_OP_N,    // op(B) = K^T
@@ -83,7 +82,6 @@ void run_unfused_flashsign(const fp16* Q, const fp16* K, const fp16* V, fp16* ou
     // Step 4: Compute output = S_normalized * V which is YxD
     //We have S_norm_T and V_T when read column-major.
     //So we can compute S_norm_T_T * V_T_T = S_norm V
-    printf("HGEMM 2\n");
     cublasHgemm(handle,
                 CUBLAS_OP_T,    // op(A) = S^T
                 CUBLAS_OP_T,    // op(B) = V^T
