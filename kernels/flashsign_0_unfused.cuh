@@ -30,11 +30,11 @@ int ceil_div(int a, int b) {
 
 __global__ void compute_row_norm_rsqrt(const fp16* S, fp16* norms, int Y, int X) {
     int row = blockIdx.x * blockDim.x + threadIdx.x;
-    fp16 sum = 0.0;
+    float sum = 0.0;
     for (int col = 0; col < X; col++) {
-        sum += S[row * X + col] * S[row * X + col];
+        sum += half2float(S[row * X + col] * S[row * X + col]);
     } 
-    norms[row] = hrsqrt(sum);
+    norms[row] = __float2half(rsqrt(sum));
 }
 
 __global__ void normalise_rows(fp16* S, const fp16* norms, int Y, int X){
