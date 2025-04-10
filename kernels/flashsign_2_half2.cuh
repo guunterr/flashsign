@@ -69,9 +69,11 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
         Q += 2 * D * BX;
         //Get that chunk into the appropriate register
         //We're eating some nasty SMEM conflicts here
-        if(tix >= loadQBXBlock && tix < loadQBXBlock + 2 * BX){
-            for (uint i = 0; i < 2 * BX; i++) regQ[loadQBXBlock + i] = KVs[i / BX][tix * D + (i % BX)];
+        int rowIdx = (tix - loadQBXBlock);
+        if(rowIdx >= 0 && rowIdx < 2 * BX){
+            for (uint i = 0; i < D; i++) regQ[i] = KVs[rowIdx / BX][(rowIdx % BX) * D + i];
         }
+        __syncthreads();
     }
     
     // Loop over X
