@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     }
     clock_t end = clock();
     double duration = (end-start) / CLOCKS_PER_SEC;
-    printf("Run wallclock time: %.3f s\n", duration);
+    printf("Run wallclock time: %.5f s\n", duration);
 
     return 0;
 }

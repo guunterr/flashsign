@@ -56,8 +56,8 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     CUDACHECK(cudaMemcpy(d_Q, Q, Y * D * sizeof(fp16), cudaMemcpyHostToDevice));
     CUDACHECK(cudaMemcpy(d_K, K, X * D * sizeof(fp16), cudaMemcpyHostToDevice));
     CUDACHECK(cudaMemcpy(d_V, V, X * D * sizeof(fp16), cudaMemcpyHostToDevice));
-    CUDACHECK(cudaMemcpy(d_O1, O1, Y * D * sizeof(fp16), cudaMemcpyHostToDevice));
-    CUDACHECK(cudaMemcpy(d_O2, O2, Y * D * sizeof(fp16), cudaMemcpyHostToDevice));
+    // CUDACHECK(cudaMemcpy(d_O1, O1, Y * D * sizeof(fp16), cudaMemcpyHostToDevice));
+    // CUDACHECK(cudaMemcpy(d_O2, O2, Y * D * sizeof(fp16), cudaMemcpyHostToDevice));
     cudaDeviceSynchronize();
     print_device_matrix<<<1,1>>>(d_O1, Y, D);
     print_device_matrix<<<1,1>>>(d_O2, Y, D);
@@ -65,12 +65,14 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     printf("Running reference kernel\n");
     run_flashsign<X,D>(0, Y, d_Q, d_K, d_V, d_O1);
     cudaDeviceSynchronize();
+    print_device_matrix<<<1,1>>>(d_O1, Y, D);
+    print_device_matrix<<<1,1>>>(d_O2, Y, D);
     printf("Running kernel %d\n", kernel_number);
     run_flashsign<X,D>(kernel_number, Y, d_Q, d_V, d_K, d_O2);
     cudaDeviceSynchronize();
-    printf("Copying data back\n");
     print_device_matrix<<<1,1>>>(d_O1, Y, D);
     print_device_matrix<<<1,1>>>(d_O2, Y, D);
+    printf("Copying data back\n");
     CUDACHECK(cudaMemcpy(O1, d_O1, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost));
     CUDACHECK(cudaMemcpy(O2, d_O2, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost));
     cudaDeviceSynchronize();
