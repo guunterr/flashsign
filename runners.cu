@@ -104,8 +104,8 @@ void time_flashsign(int kernel_number, int Y, int warmup = 2, int runs = 5) {
         cudaEventCreate(&stop);
 
         cudaEventRecord(start);
-        run_flashsign<X,D>(kernel_number, Y, d_Q + i * Y * D, d_K + i * X * D, d_V  + i * X * D, d_O + i * Y * D);
-        // run_flashsign<X,D>(kernel_number, Y, d_Q, d_K, d_V, d_O);
+        // run_flashsign<X,D>(kernel_number, Y, d_Q + i * Y * D, d_K + i * X * D, d_V  + i * X * D, d_O + i * Y * D);
+        run_flashsign<X,D>(kernel_number, Y, d_Q, d_K, d_V, d_O);
         cudaEventRecord(stop);
         cudaEventSynchronize(start);
         cudaEventSynchronize(stop);
