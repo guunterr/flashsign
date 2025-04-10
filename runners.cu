@@ -29,7 +29,7 @@ void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O)
 }
 
 template<const int X, const int D>
-void test_flashsign(int kernel_number, int Y){
+void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     fp16 *Q, *K, *V, *O1, *O2, *d_Q, *d_K, *d_V, *d_O1, *d_O2;
     printf("Filling out data: Q[%d x %d], K[%d x %d], V[%d x %d], Y[%d x %d]\n", Y, D, X, D, X, D, Y, D);
     Q = (fp16*)malloc(Y * D * sizeof(fp16));
@@ -59,7 +59,7 @@ void test_flashsign(int kernel_number, int Y){
     cudaMemcpy(O1, d_O1, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
     cudaMemcpy(O2, d_O2, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    verify_matrix(O1, O2, Y, D);
+    verify_matrix(O1, O2, Y, D, epsilon);
     free(Q);
     free(K);
     free(V);
