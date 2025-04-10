@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
     int kernel_number = atoi(argv[2]);
     int warmup = atoi(argv[3]);
     int runs = atoi(argv[4]);
+    fp16 epsilon = __double2half(atof(argv[5]));
     if (kernel_number == 0 || runs == 0) {
         printf("Invalid arguments\n");
     }
@@ -33,7 +34,7 @@ int main(int argc, char* argv[]) {
         time_flashsign<16384, 128>(kernel_number, 16384, warmup, runs);
     } else{
         printf("Testing flashsign kernel %d\n", kernel_number);
-        test_flashsign<1024, 128>(kernel_number, 1024, 0.01);
+        test_flashsign<1024, 128>(kernel_number, 1024, epsilon);
     }
     clock_t end = clock();
     double duration = (end-start) / CLOCKS_PER_SEC;
