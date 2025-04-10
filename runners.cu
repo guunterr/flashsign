@@ -46,6 +46,7 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     randomise_matrix(Q, Y*D);
     randomise_matrix(K, X*D);
     randomise_matrix(V, X*D);
+    printf("%f, %f, %f", fp162f(Q[17]), fp162f(K[17]), fp162f(V[17]));
     printf("Moving data\n");
     cudaMemcpy(d_Q, Q, Y * D * sizeof(fp16), cudaMemcpyHostToDevice);
     cudaMemcpy(d_K, K, X * D * sizeof(fp16), cudaMemcpyHostToDevice);

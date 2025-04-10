@@ -30,7 +30,7 @@ void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.05){
             printf("Matrices disagree at (%d, %d) by %.3f, with values %.3f, %.3f\n", i/N, i%N, __half2float(diff), __half2float(A[i]), __half2float(B[i]));
         }
     }
-    printf("Matrices agree to within %.2f", __half2float(epsilon));
+    printf("Matrices agree to within %.5f\n", __half2float(epsilon));
 }
 
 int ceil_div(int a, int b) {
