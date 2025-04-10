@@ -49,7 +49,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
     fp162 regQ[1 * D];
     fp162 regO[1 * D] = {};
     fp162 s2;
-    fp16 l = 0;
+    float l = 0;
     constexpr uint NUM_THREADS = BY;
     //Shuffle Q pointer to the right place
     Q += blockIdx.x * BY * D;
@@ -105,15 +105,17 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             }
             //Calculate l = sum(s^2)
             fp162 sqr = s2 * s2; //(s.x^2, s.y^2)
-            l += (sqr.x + sqr.y);
-            if(threadIdx.x == 0 && blockIdx.x == 0) printf("l: %f\n, sqr = (%f, %f)\n", __half2float(l), __half2float(sqr.x), __half2float(sqr.y));
+            l += half2float(sqr.x + sqr.y);
+            if(threadIdx.x == 0 && blockIdx.x == 0) printf("l: %f\n, sqr = (%f, %f)\n", l, __half2float(sqr.x), __half2float(sqr.y));
         }
         __syncthreads();
     }
-    fp162 norm_coeff = __half2half2(hrsqrt(l));
+    float rsqrt_l = rsqrt(l);
+    fp162 norm_coeff = __float2half2_rn(rsqrt_l);
     if(threadIdx.x == 0 && blockIdx.x == 0){
         printf("Norm coeff: %f\n", __half2float(norm_coeff.x));
-        printf("l: %f\n", __half2float(l));
+        printf("l: %f\n", l);
+        printf("rsqrt_l: %f\n", rsqrt_l);
     }
     //Thread normalises
     for (uint yIdx = 0; yIdx < D; yIdx+=4)
