@@ -19,7 +19,7 @@ void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O)
             run_flashsign1<X,D>(Y, Q, K, V, O);
             break;
         case 2:
-            run_flashsign2<X,D>(Y, Q, K, V, O);
+            run_flashsign2_half<X,D>(Y, Q, K, V, O);
     }
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
