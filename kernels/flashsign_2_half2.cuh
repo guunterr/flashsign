@@ -106,6 +106,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             //Calculate l = sum(s^2)
             fp162 sqr = s2 * s2; //(s.x^2, s.y^2)
             l += (sqr.x + sqr.y);
+            if(threadIdx.x == 0 && blockIdx.x == 0) printf("l: %f\n, sqr = (%f, %f)\n", __half2float(l), __half2float(sqr.x), __half2float(sqr.y));
         }
         __syncthreads();
     }
