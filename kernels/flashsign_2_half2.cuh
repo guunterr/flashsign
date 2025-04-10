@@ -37,7 +37,7 @@ template<const int NUM_THREADS, const int size>
 __device__ void loadGMEMToSMEM(fp162 *src, fp162 *dst){
     for (uint i = 0; i < size; i+= 4 * NUM_THREADS)
     {
-        float4 tmp = reinterpret_cast<float4 *>(&src[i + 8 * threadIdx.x])[0];
+        float4 tmp = reinterpret_cast<float4 *>(&src[i + 4 * threadIdx.x])[0];
         reinterpret_cast<float4 *>(&dst[i + 4 * threadIdx.x])[0] = tmp;
     }
 }
@@ -125,8 +125,8 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
 template<const int X, const int D>
 void run_flashsign2_half(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
     constexpr int D_HALVED = D / 2;
-    constexpr uint BY = 64;
-    constexpr uint BX = 4;
+    constexpr uint BY = 128;
+    constexpr uint BX = 8;
     fp162* new_Q = (fp162 *)Q;
     fp162* new_K = (fp162 *)K;
     fp162* new_V = (fp162 *)V;
