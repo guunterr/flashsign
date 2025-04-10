@@ -69,15 +69,17 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
         Q += 2 * D * BX;
         //Get that chunk into the appropriate register
         //We're eating some nasty SMEM conflicts here
-        for (uint i = 0; i < 2 * BX; i++) regQ[loadQBXBlock + i] = KVs[i / BX][tix * D + (i % BX)];
+        if(tix >= loadQBXBlock && tix < loadQBXBlock + 2 * BX){
+            for (uint i = 0; i < 2 * BX; i++) regQ[loadQBXBlock + i] = KVs[i / BX][tix * D + (i % BX)];
+        }
     }
     
     // Loop over X
     for (uint KVBlock = 0; KVBlock < X; KVBlock += BX)
     {
         //threads load part of K and V, size BX * D
-        loadGMEMToSMEM<NUM_THREADS, BX * D>(Q, &KVs[0][0]);
-        loadGMEMToSMEM<NUM_THREADS, BX * D>(Q, &KVs[1][0]);
+        loadGMEMToSMEM<NUM_THREADS, BX * D>(K, &KVs[0][0]);
+        loadGMEMToSMEM<NUM_THREADS, BX * D>(V, &KVs[1][0]);
         __syncthreads();
         //Shuffle K and V forwards
         K += BX * D;
