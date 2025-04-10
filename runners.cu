@@ -46,7 +46,7 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     randomise_matrix(Q, Y*D);
     randomise_matrix(K, X*D);
     randomise_matrix(V, X*D);
-    printf("%f, %f, %f", fp162f(Q[17]), fp162f(K[17]), fp162f(V[17]));
+    printf("%f, %f, %f\n", fp162f(Q[17]), fp162f(K[17]), fp162f(V[17]));
     printf("Moving data\n");
     cudaMemcpy(d_Q, Q, Y * D * sizeof(fp16), cudaMemcpyHostToDevice);
     cudaMemcpy(d_K, K, X * D * sizeof(fp16), cudaMemcpyHostToDevice);
@@ -64,8 +64,9 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     cudaMemcpy(O1, d_O1, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
     cudaMemcpy(O2, d_O2, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
+    printf("%f, %f\n", fp162f(O1[17]), fp162f(O2[17]));
     verify_matrix(O1, O2, Y, D, epsilon);
-    printf("%f, %f", fp162f(O1[17]), fp162f(O2[17]));
+    printf("%f, %f\n", fp162f(O1[17]), fp162f(O2[17]));
     free(Q);
     free(K);
     free(V);
