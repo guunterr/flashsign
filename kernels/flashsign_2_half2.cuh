@@ -106,25 +106,16 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             //Calculate l = sum(s^2)
             fp162 sqr = s2 * s2; //(s.x^2, s.y^2)
             l += __half2float(sqr.x + sqr.y);
-            // if(threadIdx.x == 0 && blockIdx.x == 0) printf("l: %f\n, sqr = (%f, %f)\n", l, __half2float(sqr.x), __half2float(sqr.y));
         }
         __syncthreads();
     }
     float rsqrt_l = rsqrt(l);
     fp162 norm_coeff = __float2half2_rn(rsqrt_l);
-    if(threadIdx.x == 0 && blockIdx.x == 0){
-        printf("Norm coeff: %f\n", __half2float(norm_coeff.x));
-        printf("l: %f\n", l);
-        printf("rsqrt_l: %f\n", rsqrt_l);
-    }
-    //Thread normalises
     for (uint yIdx = 0; yIdx < D; yIdx+=4)
     {
         for (uint i = 0; i < 4; i++)
         {
-            if(threadIdx.x == 0 && blockIdx.x == 0) printf("RegO[%d].x: %f\n", yIdx + i, __half2float(regO[yIdx + i].x));
             regO[yIdx + i] *= norm_coeff;
-            if(threadIdx.x == 0 && blockIdx.x == 0) printf("Normalised RegO[%d].x: %f\n", yIdx + i, __half2float(regO[yIdx + i].x));
         }
         float4 tmp = reinterpret_cast<float4 *>(&regO[yIdx])[0];
         reinterpret_cast<float4 *>(&O[tix * D + yIdx])[0] = tmp;
