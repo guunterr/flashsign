@@ -33,6 +33,10 @@ void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.05){
     printf("Matrices agree to within %.5f\n", __half2float(epsilon));
 }
 
+__global__ print_device_matrix(fp16 *matrix, int M, int N) {
+    if(threadIdx.x == 0 && blockIdx.x == 0) printf("%f\n", half2float(matrix[13]));
+}
+
 int ceil_div(int a, int b) {
     return (a / b) + (a % b != 0);
 }

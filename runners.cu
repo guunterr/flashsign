@@ -64,6 +64,8 @@ void test_flashsign(int kernel_number, int Y, fp16 epsilon = 0.01){
     cudaMemcpy(O1, d_O1, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
     cudaMemcpy(O2, d_O2, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
+    print_device_matrix<<<1,1>>>(d_O1, Y, D);
+    print_device_matrix<<<1,1>>>(d_O2, Y, D);
     printf("%f, %f\n", fp162f(O1[17]), fp162f(O2[17]));
     verify_matrix(O1, O2, Y, D, epsilon);
     printf("%f, %f\n", fp162f(O1[17]), fp162f(O2[17]));
