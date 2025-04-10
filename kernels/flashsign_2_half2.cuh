@@ -110,11 +110,16 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
         __syncthreads();
     }
     fp162 norm_coeff = __half2half2(hrsqrt(l));
+    if(threadIdx.x == 0 && blockIdx.x == 0){
+        printf("Norm coeff: %f\n", fp162f(norm_coeff.x));
+        printf("l: %f\n", fp162f(l.x));
+    }
     //Thread normalises
     for (uint yIdx = 0; yIdx < D; yIdx+=4)
     {
         for (uint i = 0; i < 4; i++)
         {
+            if(threadIdx.x == 0 && blockIdx.x == 0) printf("RegO[%d]: %f\n", yIdx + i, fp162f(regO[yIdx + i]));
             regO[yIdx + i] *= norm_coeff;
         }
         float4 tmp = reinterpret_cast<float4 *>(&regO[yIdx])[0];
