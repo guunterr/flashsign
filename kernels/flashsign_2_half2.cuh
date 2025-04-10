@@ -101,7 +101,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             //Calculate O = S V
             for (uint dotIdx = 0; dotIdx < D; dotIdx++)
             {
-                regO[resIdx] += s2 * KVs[1][resIdx * D + dotIdx];
+                regO[dotIdx] += s2 * KVs[1][resIdx * D + dotIdx];
             }
             //Calculate l = sum(s^2)
             fp162 sqr = s2 * s2; //(s.x^2, s.y^2)
