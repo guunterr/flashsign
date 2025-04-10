@@ -96,7 +96,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             //Calculate S = QK^T dot product for resIdx pair of elements
             for (uint dotIdx = 0; dotIdx < D; dotIdx++)
             {
-                s2 += regQ[dotIdx] + KVs[0][resIdx * D + dotIdx];
+                s2 += regQ[dotIdx] * KVs[0][resIdx * D + dotIdx];
             }
             //Calculate O = S V
             for (uint dotIdx = 0; dotIdx < D; dotIdx++)
