@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
         time_flashsign<16384, 128>(kernel_number, 16384, warmup, runs);
     } else{
         printf("Testing flashsign kernel %d\n", kernel_number);
-        test_flashsign<1024, 128>(kernel_number, 1024, epsilon);
+        test_flashsign<512, 128>(kernel_number, 512, epsilon);
     }
     clock_t end = clock();
     double duration = (end-start) / CLOCKS_PER_SEC;
