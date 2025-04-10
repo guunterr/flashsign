@@ -124,6 +124,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
 
 template<const int X, const int D>
 void run_flashsign2_half(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
+    printf("Running flashsign2_half\n");
     constexpr int D_HALVED = D / 2;
     constexpr uint BY = 128;
     constexpr uint BX = 8;

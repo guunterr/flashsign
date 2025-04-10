@@ -46,6 +46,7 @@ __global__ void normalise_rows(fp16* S, const fp16* norms, int Y, int X){
 
 // Main function to compute (row-wise L2 norm (Q K^T)) V without explicit transposes
 void run_unfused_flashsign(const fp16* Q, const fp16* K, const fp16* V, fp16* output, int Y, int X, int D) {
+    printf("Running unfused_flashsign\n");
     cublasHandle_t handle;
     cublasCreate(&handle);
 
