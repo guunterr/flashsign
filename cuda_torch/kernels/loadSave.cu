@@ -11,7 +11,7 @@ __global__ void
 loadSaveKernel(__half2* source, __half2* target, int width){
     int thread_x = 16*blockIdx.x + threadIdx.x;
     int thread_y = 16*blockIdx.y + threadIdx.y;
-    target[thread_x*width + thread_y] =  __hmul2(source[thread_x*width + thread_y], source[thread_x*width + thread_y]);
+    target[thread_x*width + thread_y] =  source[thread_x*width + thread_y] * source[thread_x*width + thread_y];
 }
 
 torch::Tensor load_save(torch::Tensor X){
