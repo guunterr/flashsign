@@ -1,6 +1,6 @@
 #include <torch/types.h>
 #include <ATen/ATen.h>
-#include "cuda_fp16.h"
+#include <cuda_fp16.h>
 
 
 #define CHECK_CUDA(x) TORCH_CHECK(x.device().is_cuda(), #x " must be a CUDA tensor")
@@ -9,8 +9,8 @@
 
 __global__ void
 loadSaveKernel(__half2* source, __half2* target, int width){
-    int thread_x = 16*blockIdx.x + threadIdx.x;
-    int thread_y = 16*blockIdx.y + threadIdx.y;
+    int thread_x = blockDim.x * blockIdx.x + threadIdx.x;
+    int thread_y = blockDim.y * blockIdx.y + threadIdx.y;
     target[thread_x*width + thread_y] =  __hmul2(source[thread_x*width + thread_y] , source[thread_x*width + thread_y]);
 }
 
