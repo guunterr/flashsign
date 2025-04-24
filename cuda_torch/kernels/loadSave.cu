@@ -9,29 +9,29 @@
 
 __global__ void
 loadSaveKernel(__half2* source, __half2* target, int width){
-    int thread_x = blockDim.x * blockIdx.x + threadIdx.x;
-    int thread_y = blockDim.y * blockIdx.y + threadIdx.y;
-    target[thread_x*width + thread_y] =  __hmul2(source[thread_x*width + thread_y] , source[thread_x*width + thread_y]);
+    int thread_row = blockDim.x * blockIdx.x + threadIdx.x;
+    int thread_col = blockDim.y * blockIdx.y + threadIdx.y;
+    target[thread_row*width + thread_col] =  __hmul2(source[thread_row*width + thread_col] , source[thread_row*width + thread_col]);
 }
 
 torch::Tensor load_save(torch::Tensor X){
     CHECK_INPUT(X);
     //change
-    int width = X.size(0);
-    int depth = X.size(1);
+    int m = X.size(0);
+    int n = X.size(1);
 
     // Create matrices according to the number of splits.
-    auto O   = torch::zeros({width, depth}, X.options());
+    auto O   = torch::zeros({m, n}, X.options());
     // Set up the pointers.
     __half2*  Xp = (__half2*)  X.data_ptr<at::Half>();
     __half2*  Op = (__half2*)  O.data_ptr<at::Half>();
     
     // Make sure its divisible by 16!!
-    dim3 blocks(width/16, depth/32);
+    dim3 blocks(m/16, n/32);
     dim3 threads(16, 16);
 
     loadSaveKernel<<<blocks, threads>>>(
-        Xp, Op, width);
+        Xp, Op, n/2);
 
     return O;
 }
