@@ -1,7 +1,8 @@
-#pragma once
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <cudaTypedefs.h>
+#include <torch/types.h>
+#include <ATen/ATen.h>
 #include <cuda_fp16.h>
 #include <cuda_fp16.hpp>
 #include <cuda_runtime.h>
@@ -17,7 +18,11 @@
 #include <random>
 #include <vector>
 
-namespace flashsign_2_half2 {
+#define CHECK_CUDA(x) TORCH_CHECK(x.device().is_cuda(), #x " must be a CUDA tensor")
+#define CHECK_CONTIGUOUS(x) TORCH_CHECK(x.is_contiguous(), #x " must be contiguous")
+#define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
+
+namespace flashsign_kernel2 {
 
 typedef __half fp16;
 typedef __half2 fp162;
@@ -42,8 +47,8 @@ __device__ void loadGMEMToSMEM(fp162 *src, fp162 *dst){
     }
 }
 
-template<const int X, const int BX, const int BY, const int D>
-__global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
+template<const int BX, const int BY, const int D>
+__global__ void kernel(int X, fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
     fp162 __shared__ KVs[2][BX * D];
 
     fp162 regQ[1 * D];
@@ -105,7 +110,7 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             }
             //Calculate l = sum(s^2)
             fp162 sqr = __hmul2(s2, s2); //(s.x^2, s.y^2)
-            l += __half2float(sqr.x + sqr.y);
+            l += __half2float(__hadd(sqr.x, sqr.y));
         }
         __syncthreads();
     }
@@ -122,27 +127,44 @@ __global__ void kernel(fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
     }
 }
 
-template<const int X, const int D>
-void run_flashsign2_half(int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O){
-    printf("Running flashsign2_half\n");
+template<const int D>
+void run_flashsign_2_pytorch(int X, int Y, fp162 *Q, fp162 *K, fp162 *V, fp162 *O){
     constexpr int D_HALVED = D / 2;
     constexpr uint BY = 128;
     constexpr uint BX = 8;
-    fp162* new_Q = reinterpret_cast<fp162 *>(Q);
-    fp162* new_K = reinterpret_cast<fp162 *>(K);
-    fp162* new_V = reinterpret_cast<fp162 *>(V);
-    fp162* new_O = reinterpret_cast<fp162 *>(O);
     dim3 gridDim(ceil_div(Y, BY));
     dim3 blockDim(BY);
-    kernel<X, BX, BY, D_HALVED><<<gridDim, blockDim>>>(new_Q, new_K, new_V, new_O);
+    kernel<BX, BY, D_HALVED><<<gridDim, blockDim>>>(X, Q, K, V, O);
+}
 }
 
-template<const int X, const int D_HALVED>
-void run_flashsign2_half2(int Y, fp162 *Q, fp162 *K, fp162 *V, fp162 *O){
-    constexpr uint BY = 128;
-    constexpr uint BX = 8;
-    dim3 gridDim(ceil_div(Y, BY));
-    dim3 blockDim(BY);
-    kernel<X, BX, BY, D_HALVED><<<gridDim, blockDim>>>(Q, K, V, O);
-}
+torch::Tensor flashsign_2_half2(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
+    CHECK_INPUT(Q);
+    CHECK_INPUT(K);
+    CHECK_INPUT(V);
+    //change
+    int Y = Q.size(0);
+    int X = K.size(0);
+    const int D = 128;
+    
+    assert(D % 2 == 0);
+    
+    assert(K.size(1) == D);
+    assert(V.size(1) == D);
+    assert(Q.size(1) == D);
+
+    assert(V.size(0) == X);
+
+
+    // Create matrices according to the number of splits.
+    auto O = torch::zeros({Y, D}, Q.options());
+    // Set up the pointers.
+    __half2* Qp = reinterpret_cast<__half2 *>(Q.data_ptr<at::Half>());
+    __half2* Kp = reinterpret_cast<__half2 *>(K.data_ptr<at::Half>());
+    __half2* Vp = reinterpret_cast<__half2 *>(V.data_ptr<at::Half>());
+    __half2* Op = reinterpret_cast<__half2 *>(O.data_ptr<at::Half>());
+    
+    flashsign_kernel2::run_flashsign_2_pytorch<D>(X, Y, Qp, Kp, Vp, Op);
+
+    return O;
 }

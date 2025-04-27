@@ -13,7 +13,7 @@ ssh root@$1 "\
     rm -rf src/*; \
     rm -rf do_profile.sh;"
 
-scp src/* root@$1:~/flashsign/src/  &
+scp -r src/ root@$1:~/flashsign/ &
 scp do_profile.sh root@$1:~/flashsign/ &
 
 wait
@@ -34,4 +34,4 @@ scp root@$1:~/flashsign/out/benchmark* profiles/$2/$datetime/ &
 scp root@$1:~/flashsign/out/compiler* profiles/$2/$datetime/ &
 scp root@$1:~/flashsign/src/kernels/* profiles/$2/$datetime/kernels/ &
 wait
-echo "Profile complete\n"
+echo "Profile complete"

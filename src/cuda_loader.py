@@ -4,6 +4,7 @@ from functools import wraps
 from pathlib import Path
 import inspect
 import typing
+from typing import Callable
 import os
 
 global cu_module, cu_dict, cpp_sources
@@ -15,10 +16,10 @@ cpp_sources_toAdd = []
 def cu_wrapper(cuda_name : str = ""):
     global cu_module, cu_dict, cpp_sources
     # The wrapper we will be applying
-    def cu_remap(func):
+    def cu_remap[**P, T](func: Callable[P, T]) -> Callable[P, T]:
         # Returns a remapped function with the same name and docstring.
         @wraps(func)
-        def cu_remapped(*args, **kwargs):
+        def cu_remapped(*args: P.args, **kwargs: P.kwargs) -> T:
             if func.__name__ in dir(cu_module):
                 return cu_module.__getattribute__(func.__name__)(*args, **kwargs)
             else:
