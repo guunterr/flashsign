@@ -138,7 +138,7 @@ void run_flashsign_2_pytorch(int X, int Y, fp162 *Q, fp162 *K, fp162 *V, fp162 *
 }
 }
 
-torch::Tensor flashsign_2_half2(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
+torch::Tensor flashsign_2(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
     CHECK_INPUT(Q);
     CHECK_INPUT(K);
     CHECK_INPUT(V);

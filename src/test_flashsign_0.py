@@ -2,8 +2,8 @@ import os, torch
 from importlib import reload
 print(torch.version.cuda)
 
-import kernels.flashsign_2_half2
-reload(kernels.flashsign_2_half2)
+import kernels.flashsign_0_unfused
+reload(kernels.flashsign_0_unfused)
 
 def signed_attention(Q, K, V):
     S = torch.matmul(Q, torch.transpose(K, 0, 1))
@@ -11,15 +11,14 @@ def signed_attention(Q, K, V):
     S = S/L
     return torch.matmul(S, V)
 
-def flashsign(Q, K, V):
-    return kernels.flashsign_2_half2.flashsign_2_half2(Q, K, V)
+torch.manual_seed(69)
 
 Q = torch.randn((512,128), device='cuda', dtype=torch.half)
 K = torch.randn((512,128), device='cuda', dtype=torch.half)
 V = torch.randn((512,128), device='cuda', dtype=torch.half)
 
 O_ref = signed_attention(Q, K, V)
-O = flashsign(Q, K, V)
+O = kernels.flashsign_0_unfused.flashsign_unfused(Q, K, V)
 
 print(torch.equal(O_ref, O))
 print(O_ref.shape, O.shape)
