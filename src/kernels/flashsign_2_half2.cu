@@ -40,7 +40,7 @@ int ceil_div(int a, int b) {
 
 template<const int NUM_THREADS, const int size>
 __device__ void loadGMEMToSMEM(fp162 *src, fp162 *dst){
-    for (uint i = 0; i < size; i+= 4 * NUM_THREADS)
+    for (uint i = 0; i < size; i += 4 * NUM_THREADS)
     {
         float4 tmp = reinterpret_cast<float4 *>(&src[i + 4 * threadIdx.x])[0];
         reinterpret_cast<float4 *>(&dst[i + 4 * threadIdx.x])[0] = tmp;
@@ -50,7 +50,7 @@ __device__ void loadGMEMToSMEM(fp162 *src, fp162 *dst){
 template<const int BX, const int BY, const int D>
 __global__ void kernel(int X, fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
     fp162 __shared__ KVs[2][BX * D];
-
+    bool print = threadIdx.x == 0 && blockIdx.x == 0;
     fp162 regQ[1 * D];
     fp162 regO[1 * D] = {};
     fp162 s2;
@@ -81,6 +81,7 @@ __global__ void kernel(int X, fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
         __syncthreads();
     }
     
+    
     // Loop over X
     for (uint KVBlock = 0; KVBlock < X; KVBlock += BX)
     {
@@ -92,6 +93,7 @@ __global__ void kernel(int X, fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
         K += BX * D;
         V += BX * D;
         ///Looping over BX
+
         #pragma unroll
         for (uint resIdx = 0; resIdx < BX; resIdx+=1)
         {
@@ -101,16 +103,21 @@ __global__ void kernel(int X, fp162 *Q, fp162 *K, fp162 *V, fp162 *O) {
             //Calculate S = QK^T dot product for resIdx pair of elements
             for (uint dotIdx = 0; dotIdx < D; dotIdx++)
             {
-                s2 =__hadd2(s2, __hmul2(regQ[dotIdx], KVs[0][resIdx * D + dotIdx]));
+                // regO[dotIdx] = KVs[0][resIdx * D + dotIdx];
+                fp162 tmp = __hmul2(regQ[dotIdx], KVs[0][resIdx * D + dotIdx]);
+                s2 =__hadd2(s2, tmp);
             }
+            //Combine both parts of S (even and odd components of dot on D-axis), duplicate this
+            s2 = __half2half2(__hadd(s2.x, s2.y));
+            
             //Calculate O = S V
             for (uint dotIdx = 0; dotIdx < D; dotIdx++)
             {
                 regO[dotIdx] = __hadd2(regO[dotIdx], __hmul2(s2, KVs[1][resIdx * D + dotIdx]));
             }
             //Calculate l = sum(s^2)
-            fp162 sqr = __hmul2(s2, s2); //(s.x^2, s.y^2)
-            l += __half2float(__hadd(sqr.x, sqr.y));
+            float s_flt = __half2float(s2.x);
+            l += s_flt * s_flt;
         }
         __syncthreads();
     }
