@@ -5,3 +5,4 @@ __pycache__
 profile.ncu-rep
 profiles
 ncu_project
+matmul_kernels

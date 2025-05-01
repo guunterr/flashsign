@@ -33,3 +33,8 @@
     - Kernel 3 960 GFLOPS
     - Kernel 4 1200 GFLOPS
     - I think I need a profiler to keep going...
+
+- Flashsign stuff
+    - Compile and run on A100
+    - Get 256 thread size working
+    - Get FP16 utilisation to 100%

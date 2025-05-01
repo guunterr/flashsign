@@ -2,7 +2,8 @@
 
 #include "kernels/flashsign_0_unfused.cuh"
 #include "kernels/flashsign_1_basic.cuh"
-#include "kernels/flashsign_2_half2.cuh"
+#include "kernels/flashsign_kernel2.cu"
+#include "kernels/flashsign_kernel3.cu"
 #include "utils.cu"
 #include <cublas_v2.h>
 
@@ -10,18 +11,22 @@
 
 template<const int X, const int D>
 void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O) {
-    using flashsign_1_basic::run_flashsign1;
-    using flashsign_0_unfused::run_unfused_flashsign;
-    using flashsign_2_half2::run_flashsign2_half;
+    using flashsign_0_kernel::run_unfused_flashsign;
+    using flashsign_kernel2::run_flashsign2_cuda;
+    using flashsign_kernel3::run_flashsign3_cuda;
     switch(kernel_number) {
         case 0:
             run_unfused_flashsign(Q, K, V, O, Y, X, D);
             break;
         case 1:
-            run_flashsign1<X,D>(Y, Q, K, V, O);
+            // run_flashsign1<X,D>(Y, Q, K, V, O);
+            printf("We don't talk about bruno\n");
             break;
         case 2:
-            run_flashsign2_half<X,D>(Y, Q, K, V, O);
+            run_flashsign2_cuda<D>(X, Y, Q, K, V, O);
+            break;
+        case 3:
+            run_flashsign3_cuda<D>(X, Y, Q, K, V, O);
             break;
     }
     cudaError_t err = cudaGetLastError();

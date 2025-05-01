@@ -22,7 +22,7 @@ def create_instance():
     if len(dc_client.instances.get()) == 0:
         print("Creating instance...")
         instance = dc_client.instances.create(
-                                                instance_type="1V100.6V",
+                                                instance_type="1A100.22V",
                                                 # instance_type="1H100.80S.30V", 
                                                 image=OS_VOLUME_ID,
                                                 # ssh_key_ids=ssh_keys_ids,

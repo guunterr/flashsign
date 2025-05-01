@@ -6,8 +6,8 @@ from time import perf_counter
 import random
 print(torch.version.cuda)
 
-import kernels.flashsign_2_half2
-reload(kernels.flashsign_2_half2)
+import kernels.flashsign_3_pytorch
+reload(kernels.flashsign_3_pytorch)
 
 def print_full(tensor):
     torch.set_printoptions(profile="full")
@@ -27,6 +27,8 @@ def signed_attention(Q, K, V):
     S = S/L
     return torch.matmul(S, V)
 
+def flashsign(Q, K, V):
+    return kernels.flashsign_3_pytorch.flashsign_3(Q, K, V)
 if __name__ == "__main__":
 
     torch.manual_seed(69)
@@ -52,14 +54,14 @@ if __name__ == "__main__":
             ref_times.append(ref_timer_stop - ref_timer_start)
             
             cuda_timer_start = perf_counter()
-            O = kernels.flashsign_2_half2.flashsign_2(Q, K, V)
+            O = flashsign(Q,K,V)
             torch.cuda.synchronize()
             cuda_timer_stop = perf_counter()
             cuda_times.append(cuda_timer_stop - cuda_timer_start)
             
         else:
             cuda_timer_start = perf_counter()
-            O = kernels.flashsign_2_half2.flashsign_2(Q, K, V)
+            O = flashsign(Q,K,V)
             torch.cuda.synchronize()
             cuda_timer_stop = perf_counter()
             cuda_times.append(cuda_timer_stop - cuda_timer_start)
