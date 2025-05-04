@@ -96,8 +96,7 @@ __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int 
     cvta_shared_64(q_frag_addr, q_frag_pointer);
     ldmatrix1(Q_frags[0][0][0], q_frag_addr);
 
-    printf("Thread %d: %.1f", tix, __half2float((*(fp162*)&Q_frags[0][0][0]).x));
-    printf("Thread %d: %.1f", tix, __half2float((*(fp162*)&Q_frags[0][0][0]).y));
+    printf("Thread %d: %.0f %.0f\n", tix, __half2float(reinterpret_cast<half2 *>(&Q_frags[0][0][0])[0].x), __half2float(reinterpret_cast<half2 *>(&Q_frags[0][0][0])[0].y));
 
 
     // if (tix == 0 && false)
