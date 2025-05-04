@@ -4,6 +4,7 @@
 #include "kernels/flashsign_1_basic.cuh"
 #include "kernels/flashsign_kernel2.cu"
 #include "kernels/flashsign_kernel3.cu"
+#include "kernels/flashsign_kernel4.cu"
 #include "utils.cu"
 #include <cublas_v2.h>
 
@@ -27,6 +28,9 @@ void run_flashsign(int kernel_number, int Y, fp16 *Q, fp16 *K, fp16 *V, fp16 *O)
             break;
         case 3:
             run_flashsign3_cuda<D>(X, Y, Q, K, V, O);
+            break;
+        case 4:
+            flashsign_kernel4::run_kernel(X,Y,Q,K,V,O);
             break;
     }
     cudaError_t err = cudaGetLastError();
