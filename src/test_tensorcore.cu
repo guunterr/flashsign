@@ -59,20 +59,52 @@ __device__ void load2(fp16* src, fp16* dst){
 #define wait_all() asm volatile("cp.async.wait_all;")
 
 #define ldmatrix1(m, src) asm volatile("ldmatrix.sync.aligned.m8n8.x1.shared.b16 {%0}, [%1];" : "=r"(m) : "l"(src))
+#define ldmatrix1_t(m, src) asm volatile("ldmatrix.sync.aligned.m8n8.x1.trans.shared.b16 {%0}, [%1];" : "=r"(m) : "l"(src))
+
+#define ldmatrix4(r0, r1, r2, r3, src) asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0, %1, %2, %3}, [%4];" : "=r"(r0), "=r"(r1), "=r"(r2), "=r"(r3) : "l"(src))
 // #define ldmatrix4(m, src) asm volatile("ldmatrix.sync.")
+
+#define mma_m16n8k8_fp16(a0, a1,b,c0, c1,d0, d1) \
+    asm volatile(   "{\n\t"                                                 \
+                    ".reg .f16x2 %%a<2>, %%b, %%c<2>, %%d<2>; \n\t"         \
+                    "mov.b32 %%a0, %5; \n\t"                                \
+                    "mov.b32 %%a1, %6; \n\t"                                \
+                    "mov.b32 %%b, %2; \n\t"                                 \
+                    "mov.b32 %%c0, %3; \n\t"                                \
+                    "mov.b32 %%c1, %4; \n\t"                                \
+                    "mov.b32 %%d0, %0; \n\t"                                \
+                    "mov.b32 %%d1, %1; \n\t"                                \
+                    "mma.sync.aligned.m16n8k8.row.col.f16.f16.f16.f16"      \
+                    "   {%%d0, %%d1},"                                      \
+                    "   {%%a0, %%a1},"                                      \
+                    "   {%%b},"                                             \
+                    "   {%%c0, %%c1}; \n\t"                                 \
+                    "mov.b32 %0, %%d0; \n\t"                                 \
+                    "mov.b32 %1, %%d1; \n \t"                                \
+                    "}"                                                     \
+                    : "=r"(d0), "=r"(d1)                                    \
+                    : "r"(b), "r"(c0), "r"(c1), "r"(a0), "r"(a1)            \
+                )
+
+__device__ float2 unpack_half2(uint32_t packed_floats){
+    fp162 floats = reinterpret_cast<fp162*>(&packed_floats)[0];
+    return __half22float2(floats);
+}
 
 template<const int BX, const int BY, const int D>
 __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int * global_timers) {
     //Algorithm -> Load Q -> Prefetch KV Row -> Load Next KV Row, Process current dot product and accumualate l2 -> Normalise O -> Output
     const int tix = threadIdx.x;
     const int warpIdx = tix / WARP_SIZE;
+    const int laneIdx = tix % WARP_SIZE;
     const int bufferPadding = 8;
     const int D_Frag_Count = D/8;
     __shared__ fp16 KVBuffer[2][2][BX][D + bufferPadding];
 
     //2 elements = 1 register per 8x8 fragment, D_Frag_Count needed to span D=128, 4 rows required to fill a warp
     //64 registers just for this!
-    uint32_t Q_frags[4][D_Frag_Count][1];
+    uint32_t Q_frags[4][D_Frag_Count] = {};
+    uint32_t S_frags[2] = {};
     
     fp16* Q_start = Q + blockIdx.x * BY * D;
 
@@ -91,13 +123,59 @@ __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int 
     wait_all();
     __syncthreads();
 
-    fp16* q_frag_pointer = &KVBuffer[0][0][tix][0];
-    uint64_t q_frag_addr;
-    cvta_shared_64(q_frag_addr, q_frag_pointer);
-    ldmatrix1(Q_frags[0][0][0], q_frag_addr);
+    //Load Q into registers
+    fp16* base_pointer = &KVBuffer[0][0][warpIdx * WARP_SIZE][0];
+    for (int D_slice = 0; D_slice < D_Frag_Count; D_slice++)
+    {
+        fp16* read_ptr = &KVBuffer[0][0][tix][D_slice * 8];
+        uint64_t read_addr;
+        cvta_shared_64(read_addr, read_ptr);
+        ldmatrix4(Q_frags[0][D_slice], Q_frags[1][D_slice], Q_frags[2][D_slice], Q_frags[3][D_slice], read_addr);
+    }
 
-    printf("Thread %d: %.0f %.0f\n", tix, __half2float(reinterpret_cast<half2 *>(&Q_frags[0][0][0])[0].x), __half2float(reinterpret_cast<half2 *>(&Q_frags[0][0][0])[0].y));
+    for (int warp = 0; warp < 4; warp++)
+    {
+        if (warpIdx == warp)
+        {
+            for (int yIdx = 0; yIdx < 4; yIdx++)
+            {
+                for (int xIdx = 0; xIdx < D_Frag_Count; xIdx++)
+                {
+                   printf("Q_%d_%d_%d: Thread %d: %3.3f %5.3f\n", warp, yIdx, xIdx, tix, unpack_half2(Q_frags[yIdx][xIdx]).x, unpack_half2(Q_frags[yIdx][xIdx]).y);
+                }
+                    
+            }
+        }
+        __syncthreads();
+    }
+    
+    
 
+    // fp16* q_frag_pointer = &KVBuffer[0][0][warpIdx * 16 + laneIdx][0];
+    // uint64_t q_frag_addr;
+    // cvta_shared_64(q_frag_addr, q_frag_pointer);
+    // ldmatrix1(Q_frags[0][0], q_frag_addr);
+    // q_frag_pointer = &KVBuffer[0][0][warpIdx * 16 + 8 + laneIdx][0];
+    // cvta_shared_64(q_frag_addr, q_frag_pointer);
+    // ldmatrix1(Q_frags[0][1], q_frag_addr);
+
+    // if(warpIdx == 0) printf("Q1a: Thread %d: %5.1f %5.1f\n", tix, unpack_half2(Q_frags[0][0]).x, unpack_half2(Q_frags[0][0]).y);
+    // if(warpIdx == 0) printf("Q1b: Thread %d: %5.1f %5.1f\n", tix, unpack_half2(Q_frags[0][1]).x, unpack_half2(Q_frags[0][1]).y);
+
+    // q_frag_pointer = &KVBuffer[0][0][warpIdx * 16 + laneIdx][8];
+    // cvta_shared_64(q_frag_addr, q_frag_pointer);
+    // ldmatrix1(Q_frags[0][2], q_frag_addr);
+    // q_frag_pointer = &KVBuffer[0][0][warpIdx * 16 + 8 + laneIdx][8];
+    // cvta_shared_64(q_frag_addr, q_frag_pointer);
+    // ldmatrix1(Q_frags[0][3], q_frag_addr);
+
+    // if(warpIdx == 0) printf("Q2a: Thread %d: %5.1f %5.1f\n", tix, unpack_half2(Q_frags[0][2]).x, unpack_half2(Q_frags[0][2]).y);
+    // if(warpIdx == 0) printf("Q2b: Thread %d: %5.1f %5.1f\n", tix, unpack_half2(Q_frags[0][3]).x, unpack_half2(Q_frags[0][3]).y);
+
+    // mma_m16n8k8_fp16(Q_frags[0][0], Q_frags[0][1], Q_frags[0][2], S_frags[0], S_frags[1], S_frags[0], S_frags[1]);
+
+    // if(warpIdx == 0) printf("S0a: Thread %d: %5.1f %5.1f\n", tix, unpack_half2(S_frags[0]).x, unpack_half2(S_frags[0]).y);
+    // if(warpIdx == 0) printf("S0b: Thread %d: %5.1f %5.1f\n", tix, unpack_half2(S_frags[1]).x, unpack_half2(S_frags[1]).y);
 
     // if (tix == 0 && false)
     // {
