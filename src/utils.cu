@@ -25,7 +25,7 @@ void initialise_matrix(fp16 *matrix, int M, int N) {
     {
         for (int j = 0; j < N; j++)
         {
-            matrix[i * N + j] = f2fp16(((float)(i*N + j)) / 1000.0f);
+            matrix[i*N+ j] = f2fp16(((float)(i + j)) / 100.0f);
         }
         
     }
