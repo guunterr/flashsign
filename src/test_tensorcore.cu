@@ -62,6 +62,7 @@ __device__ void load2(fp16* src, fp16* dst){
 #define ldmatrix1_t(m, src) asm volatile("ldmatrix.sync.aligned.m8n8.x1.trans.shared.b16 {%0}, [%1];" : "=r"(m) : "l"(src))
 
 #define ldmatrix2(r0, r1, src) asm volatile("ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0, %1}, [%2];" : "=r"(r0), "=r"(r1) : "l"(src))
+#define ldmatrix2_t(r0, r1, src) asm volatile("ldmatrix.sync.aligned.m8n8.x2.trans.shared.b16 {%0, %1}, [%2];" : "=r"(r0), "=r"(r1) : "l"(src))
 
 #define ldmatrix4(r0, r1, r2, r3, src) asm volatile(                                    \
     "ldmatrix.sync.aligned.m8n8.x4.shared.b16"                                          \
@@ -122,7 +123,17 @@ __device__ float2 unpack_half2_cvt_float2(uint32_t packed_floats){
     return __half22float2(floats);
 }
 
-__device__ void preload_kv_chunk();
+__device__ int2 lane_idx_in_frag(int lane_id){
+    int2 out;
+    out.x = lane_id / 4;
+    out.y = 2 * (lane_id % 4);
+    return out;
+}
+
+__device__ void write_fragment(uint32_t fragment, fp16* write_ptr){
+    uint32_t* write_ptr_32 = reinterpret_cast<uint32_t*>(write_ptr);
+    write_ptr_32[0] = fragment;
+}
 
 template<const int BX, const int BY, const int D>
 __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int * global_timers) {
@@ -138,9 +149,13 @@ __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int 
     //64 registers just for this!
     uint32_t Q_frags[4][D_Frag_Count] = {};
     uint32_t K_frags[2] = {};
+    uint32_t V_frags[2] = {};
     uint32_t S_frags[4][4] = {};
+    uint32_t O_frags[4][D_Frag_Count] = {};
+    float z;
     
     fp16* Q_start = Q + blockIdx.x * BY * D;
+    fp16* O_start = O + blockIdx.x * BY * D;
 
     const int access_size = 8;
     const int threads_per_row = D/access_size;
@@ -173,6 +188,7 @@ __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int 
 
     for (int KV_Block = 0; KV_Block < X; KV_Block += BX)
     {
+        //load KV Block
         fp16* K_base_ptr = K + KV_Block * D;
         for (int K_row = 0; K_row < 32; K_row += access_size)
         {
@@ -192,15 +208,23 @@ __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int 
             load8_async_prefetch(read_ptr,write_addr);
         }
         commit_group();
+        //wait for KV block to load
         wait_all();
         __syncthreads();
-
+        //Zero out accumulator
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                S_frags[i][j] = 0;
+            }
+        }
+        //Perform S = QK^T
         for (int k_chunk = 0; k_chunk < 4; k_chunk++)
         {
             for (int d_chunk = 0; d_chunk < D_Frag_Count; d_chunk+=2)
             {
                 fp16* read_ptr = &KVBuffer[active_buffer][0][k_chunk * 8 + laneIdx % 8][8 * (d_chunk + laneIdx / 8)];
-                if(tix == 0) printf("Thread 0 reading from block (%d, %d) for k_chunk=%d, d_chunk = %d, %d\n", k_chunk, d_chunk,k_chunk * 8 + laneIdx % 8, 8 * (d_chunk + laneIdx / 8));
                 uint64_t read_addr;
                 cvta_shared_64(read_addr, read_ptr);
                 ldmatrix2(K_frags[0], K_frags[1], read_addr);
@@ -208,34 +232,67 @@ __global__ void kernel(int X, fp16* Q, fp16* K, fp16* V, fp16* O, long long int 
                 mma_m16n8k16_fp16(Q_frags[2][d_chunk], Q_frags[3][d_chunk], Q_frags[2][d_chunk + 1], Q_frags[3][d_chunk + 1], K_frags[0], K_frags[1], S_frags[2][k_chunk], S_frags[3][k_chunk], S_frags[2][k_chunk], S_frags[3][k_chunk]);
             }
         }
-        __syncthreads();
-        
-        for (int warp = 0; warp < 4; warp++)
+        //Perform O += SV
+        for (int d_chunk = 0; d_chunk < D_Frag_Count; d_chunk++)
         {
-            for (int i = 0; i < 4; i++)
+            for (int x_chunk = 0; x_chunk < 2; x_chunk++)
             {
-                for (int j = 0; j < 4; j++)
-                {
-                    for (int thread = 32*warp; thread < 32*(warp + 1); thread++)
-                    {
-                        if(tix == thread){
-                            float2 s2 = unpack_half2_cvt_float2(S_frags[i][j]);
-                            int s_row = warp * 32 + i * 8 + laneIdx / 4;
-                            int s_col = j * 8 + 2 * (laneIdx % 4);
-                            printf("SBLK[%d][%d] in T%d = S[%d][%d] = {%2.2f, %2.2f}\n", i,j,thread, s_row, s_col,s2.x, s2.y);
-                        }
-                        
-                    }
-                }
+                fp16* read_ptr = &KVBuffer[active_buffer][1][x_chunk * 16 + laneIdx][8 * d_chunk];
+                uint64_t read_addr;
+                cvta_shared_64(read_addr, read_ptr);
+                ldmatrix2_t(V_frags[0], V_frags[1], read_addr);
+                mma_m16n8k16_fp16(S_frags[0][2 * x_chunk], S_frags[1][2 * x_chunk], S_frags[0][2 * x_chunk + 1], S_frags[1][2 * x_chunk + 1], V_frags[0], V_frags[1], O_frags[0][d_chunk], O_frags[1][d_chunk], O_frags[0][d_chunk], O_frags[1][d_chunk]);
+                mma_m16n8k16_fp16(S_frags[2][2 * x_chunk], S_frags[3][2 * x_chunk], S_frags[2][2 * x_chunk + 1], S_frags[3][2 * x_chunk + 1], V_frags[0], V_frags[1], O_frags[2][d_chunk], O_frags[3][d_chunk], O_frags[2][d_chunk], O_frags[3][d_chunk]);
             }
-            __syncthreads();
+            
         }
+        __syncthreads();
+        for (int S_buffer_i = 0; S_buffer_i < 4; S_buffer_i++)
+        {
+            for (int S_buffer_j = 0; S_buffer_j < 4; S_buffer_j++)
+            {
+                fp16* S_rearrage_write_ptr = &KVBuffer[active_buffer][0][S_buffer_i * 8 + (laneIdx / 4)][warpIdx * 32 + S_buffer_j * 8 + 2 * (laneIdx % 4)];
+                write_fragment(S_frags[S_buffer_i][S_buffer_j], S_rearrage_write_ptr);
+            }
+        }
+        __syncthreads();
+        for (int i = 0; i < BX; i++)
+        {
+            fp16 s = KVBuffer[active_buffer][0][laneIdx][warpIdx * 32 + i];
+            z += __half2float(__hmul(s,s));
+        }
+    }
 
-        break;
+    z = rsqrt(z);
+    fp16 l = __float2half(z);
+    //Write out O
+    //Buffer write though smem to coalesce global writes
+    for (int ORowBlock = 0; ORowBlock < 4; ORowBlock++)
+    {
+        for (int OColBlock = 0; OColBlock < D_Frag_Count; OColBlock++)
+        {
+            fp16* write_ptr = &KVBuffer[warpIdx / 2][warpIdx % 2][ORowBlock * 8 + (laneIdx / 4)][OColBlock * 8 + 2 * (laneIdx % 4)];
+            write_fragment(O_frags[ORowBlock][OColBlock], write_ptr);
+        }
+    }
+    __syncthreads();
+    for (int DIdx = 0; DIdx < D; DIdx++)
+    {
+        KVBuffer[warpIdx/2][warpIdx%2][laneIdx][DIdx] = __hmul(KVBuffer[warpIdx/2][warpIdx%2][laneIdx][DIdx], l);
+    }
+    __syncthreads();
+    //8 elements per thread = 8 rows across warpgroup
+    for (int O_row = 0; O_row < BY; O_row+=8)
+    {
+        fp16* write_ptr = O_start + O_row * D + tix * 8;   
+        fp16* read_ptr = &KVBuffer[0][0][O_row + (tix/(D/8))][(tix % (D/8)) * 8];
+        
+        reinterpret_cast<float4 *>(write_ptr)[0] = reinterpret_cast<float4 *>(read_ptr)[0];
     }
     
-    
 }
+
+
 
 
 void run_kernel(int X, int Y, fp16* Q, fp16* K, fp16* V, fp16* O) {
@@ -245,16 +302,15 @@ void run_kernel(int X, int Y, fp16* Q, fp16* K, fp16* V, fp16* O) {
 
     dim3 gridDim(ceil_div(Y, BY));
     dim3 blockDim(BY);
-    printf("Running kernel\n");
-    kernel<BX, BY, D><<<1, BY>>>(X, Q, K, V, O, 0);
+    kernel<BX, BY, D><<<gridDim, blockDim>>>(X, Q, K, V, O, 0);
 }
 }
 
 int main(int argc, char* argv[]) {
     //Allocate and initialise Q, K, V, O
     constexpr int D = 128;
-    const int X = 32;
-    const int Y = 128;
+    const int X = 82944;
+    const int Y = 82944;
     fp16 *Q, *K, *V, *O, *d_Q, *d_K, *d_V, *d_O;
     Q = (fp16*)malloc(Y * D * sizeof(fp16));
     K = (fp16*)malloc(X * D * sizeof(fp16));
@@ -271,10 +327,10 @@ int main(int argc, char* argv[]) {
     cudaMemcpy(d_K, K, X * D * sizeof(fp16), cudaMemcpyHostToDevice);
     cudaMemcpy(d_V, V, X * D * sizeof(fp16), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
-    printf("Running kernel\n");
     test_tensorcore::run_kernel(X, Y, d_Q, d_K, d_V, d_O);
     cudaDeviceSynchronize();
     cudaMemcpy(O, d_O, Y * D * sizeof(fp16), cudaMemcpyDeviceToHost);
+    
     return 0;
 
 }
