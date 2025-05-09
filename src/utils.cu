@@ -20,6 +20,18 @@ void randomise_matrix(fp16 *matrix, int N) {
     }
 }
 
+void initialise_matrix(fp16 *matrix, int M, int N) {
+    for (int i = 0; i < M; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            matrix[i*N+ j] = f2fp16(((float)(i +  j)) / 10000.0f);
+        }
+        
+    }
+    
+}
+
 void verify_matrix(fp16 *A, fp16 *B, int M, int N, fp16 epsilon = 0.05){
     fp16 diff = 0;
     for (int i = 0; i < M * N; i++)

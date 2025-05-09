@@ -6,17 +6,11 @@ from time import perf_counter
 from importlib import reload
 print(torch.version.cuda)
 
-import kernels.flashsign_0_unfused
-reload(kernels.flashsign_0_unfused)
-
 def signed_attention(Q, K, V):
     S = torch.matmul(Q, torch.transpose(K, 0, 1))
     L = torch.linalg.norm(S, ord=2, dim=1, keepdim=True)
     S = S/L
     return torch.matmul(S, V)
-
-def flashsign(Q, K, V):
-    return kernels.flashsign_0_unfused.flashsign_unfused(Q, K, V)
 
 def test_flashsign(kernel, reference, X, Y, epsilon=0.01):
     torch.manual_seed(69)
@@ -27,63 +21,61 @@ def test_flashsign(kernel, reference, X, Y, epsilon=0.01):
     K = torch.randn((X,128), device='cuda', dtype=torch.half)
     V = torch.randn((X,128), device='cuda', dtype=torch.half)
 
-    O_ref = signed_attention(Q, K, V)
-    O = flashsign(Q, K, V)
-
-    correct_percentage = 100 * torch.count_nonzero(torch.abs(O_ref - O) < epsilon) / O.numel()
-
-    print(f"{correct_percentage:.2f}% of elements are within {epsilon} of reference")
+    O_ref = reference(Q, K, V)
+    O = kernel(Q, K, V)
     
-def benchmark_flashsign(kernel, reference, X, Y, warmups, runs):
+    torch.set_printoptions(profile='full', sci_mode=False,precision=3)
+    diff = (O_ref - O).to(torch.float32)
+    abs_diff = torch.abs(diff)
+    # print(O)
+    torch.set_printoptions(profile='default')
+
+    correct_percentage = 100 * torch.count_nonzero(torch.abs(diff) < epsilon) / O.numel()
+    close_percentage = 100 * torch.isclose(O, O_ref).sum().item() / O.numel()
+
+    print(f"Kernel result contains {torch.isnan(O).sum().item()}/{Y * 128} ({100 * (torch.isnan(O).sum().item()/(Y * 128)):.2f}%) NaNs")
+    print(f"{correct_percentage:.2f}% of elements are within {epsilon} of reference")
+    print(f"{close_percentage:.2f}% of elements are close [torch.close()] to reference")
+    print(f"Average difference: {diff.mean().item():.2e}+-{diff.std().item():.2e}")
+    print(f"Average absolute difference: {abs_diff.mean().item():.2e}+-{abs_diff.std().item():.2e}")
+    
+def benchmark_flashsign(kernel, X, Y, warmups, runs):
     torch.manual_seed(69)
     
-    print(f"Benchmarking flashsign {sys.argv[1]} over {runs} runs with {warmups} warmups")
+    
     D = 128
-    ref_times = []
-    cuda_times = []
+    print(f"Benchmarking flashsign {sys.argv[1]} over {runs} runs with {warmups} warmups, X = {X}, Y = {Y}, D = {D}")
+    times = []
+    nans = []
     for i in range(warmups + runs):
         Q = torch.randn((Y,D), device='cuda', dtype=torch.half)
         K = torch.randn((X,D), device='cuda', dtype=torch.half)
         V = torch.randn((X,D), device='cuda', dtype=torch.half)
-        which_first = random.randint(0,1)
-        if(which_first == 0):
-            ref_timer_start = perf_counter()
-            O_ref = reference(Q, K, V)
-            torch.cuda.synchronize()
-            ref_timer_stop = perf_counter()
-            ref_times.append(ref_timer_stop - ref_timer_start)
-            
-            cuda_timer_start = perf_counter()
-            O = kernel(Q,K,V)
-            torch.cuda.synchronize()
-            cuda_timer_stop = perf_counter()
-            cuda_times.append(cuda_timer_stop - cuda_timer_start)
-        else:
-            cuda_timer_start = perf_counter()
-            O = kernel(Q,K,V)
-            torch.cuda.synchronize()
-            cuda_timer_stop = perf_counter()
-            cuda_times.append(cuda_timer_stop - cuda_timer_start)
-            
-            ref_timer_start = perf_counter()
-            O_ref = reference(Q, K, V)
-            torch.cuda.synchronize()
-            ref_timer_stop = perf_counter()
-            ref_times.append(ref_timer_stop - ref_timer_start)
 
-    ref_times = ref_times[warmups:]
-    cuda_times = cuda_times[warmups:]
-    print(f"Pytorch time = {1000 * np.mean(ref_times):.1f}ms +- {1000 * np.std(ref_times):.1f}")
-    print(f"Cuda time = {1000 * np.mean(cuda_times):.1f}ms +- {1000 * np.std(cuda_times):.1f}")
+        cuda_timer_start = perf_counter()
+        O = kernel(Q,K,V)
+        torch.cuda.synchronize()
+        nan_count = torch.isnan(O).sum().item()
+        if nan_count > 0:
+            nans.append((i, nan_count))
+        cuda_timer_stop = perf_counter()
+        times.append(cuda_timer_stop - cuda_timer_start)
+
+    times = times[warmups:]
+    print(f"Kernel time = {1000 * np.mean(times):.2f}ms +- {1000 * np.std(times):.2f}")
+    print(nans)
 
 if __name__ == "__main__":
     if sys.argv[1] == "0":
         import kernels.flashsign_0_unfused
         reload(kernels.flashsign_0_unfused)
         def flashsign(Q, K, V):
-            return kernels.flashsign_0_unfused.flashsign_unfused(Q, K, V)
+            return signed_attention(Q,K,V)
     elif sys.argv[1] == "1":
-        print("This shouldn't happen")
+        import kernels.flashsign_0_unfused
+        reload(kernels.flashsign_0_unfused)
+        def flashsign(Q, K, V):
+            return kernels.flashsign_0_unfused.flashsign_unfused(Q, K, V)
     elif sys.argv[1] == "2":
         import kernels.flashsign_2_half2
         reload(kernels.flashsign_2_half2)
@@ -99,5 +91,12 @@ if __name__ == "__main__":
         reload(kernels.flashsign_kernel4)
         def flashsign(Q,K,V):
             return kernels.flashsign_kernel4.flashsign_4(Q, K, V)
-    test_flashsign(flashsign, signed_attention, 1024, 1024)
-    benchmark_flashsign(flashsign, signed_attention, int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
+    elif sys.argv[1] == "5":
+        import kernels.flashsign_kernel5
+        reload(kernels.flashsign_kernel5)
+        def flashsign(Q,K,V):
+            return kernels.flashsign_kernel5.flashsign_5(Q, K, V)
+    if "t" in sys.argv[5]:
+        test_flashsign(flashsign, signed_attention, 108 * 128 * 6, 108 * 128 * 6)
+    if "b" in sys.argv[5]:
+        benchmark_flashsign(flashsign, 108 * 128 * int(sys.argv[2]), 108 * 128 * int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))
